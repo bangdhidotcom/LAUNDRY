@@ -38,7 +38,16 @@ class _AddOrderPageState extends State<AddOrderPage> {
 
   Future<void> _loadServices() async {
     try {
-      final pricing = await _supabaseService.getPricing();
+      // Modifikasi: Tambahkan .order() agar daftar layanan terurut
+      final pricing = await _supabaseService.getPricing().then(
+            (data) => data
+              ..sort((a, b) => (a['service_name'] as String)
+                  .compareTo(b['service_name'] as String)),
+          );
+
+      // Jika SupabaseService Anda diperbarui untuk mendukung order:
+      // final pricing = await _supabaseService.getPricing(orderBy: 'service_name');
+      
       setState(() {
         _services = pricing;
       });
@@ -114,7 +123,6 @@ class _AddOrderPageState extends State<AddOrderPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tambah Order Baru'),
-        backgroundColor: const Color(0xFF005f9f),
         elevation: 0,
       ),
       body: SingleChildScrollView(

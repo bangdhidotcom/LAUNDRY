@@ -1,3 +1,5 @@
+// [GANTI SELURUH ISI FILE lib/catalog_screen.dart]
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:laundry3b1titik0/detail_screen.dart';
@@ -7,31 +9,65 @@ class LaundryService {
   final String name;
   final String price;
   final IconData icon;
+  final String description;
 
-  LaundryService({required this.name, required this.price, required this.icon});
+  LaundryService({
+    required this.name,
+    required this.price,
+    required this.icon,
+    required this.description,
+  });
 
   factory LaundryService.fromJson(Map<String, dynamic> json) {
-    // Map icon strings to IconData (assuming 'icon' field contains icon name as string)
-    final iconName = json['icon'] ?? 'local_laundry_service';
-    final iconData = _getIconFromString(iconName);
+    // --- PERBAIKAN LOGIKA IKON (SMART MAPPING) ---
+    // Kita tidak membaca 'icon_name' dari Supabase
+    // Kita MENGANALISIS 'service_name'
+    final serviceName = json['service_name'] as String? ?? 'Unknown Service';
+    final iconData = getIconFromString(serviceName);
+    // --- AKHIR PERBAIKAN ---
+
+    String priceString;
+    final priceNum = (json['price'] as num?)?.toDouble();
+
+    if (priceNum != null) {
+      priceString = 'Rp ${priceNum.toStringAsFixed(0)}';
+    } else {
+      priceString = 'Harga tidak diatur';
+    }
 
     return LaundryService(
-      name: json['name'] ?? 'Unknown Service',
-      price: json['price'] ?? 'Price not available',
-      icon: iconData,
+      name: serviceName,
+      price: priceString,
+      icon: iconData, // Gunakan ikon dinamis hasil analisis
+      description: json['description'] ?? '',
     );
   }
 
-  static IconData _getIconFromString(String iconName) {
-    const iconMap = {
-      'local_laundry_service': Icons.local_laundry_service,
-      'iron': Icons.iron,
-      'checkroom': Icons.checkroom,
-      'king_bed': Icons.king_bed,
-      'ice_skating': Icons.ice_skating,
-      'dry_cleaning': Icons.dry_cleaning,
-    };
-    return iconMap[iconName] ?? Icons.local_laundry_service;
+  // --- LOGIKA SMART MAPPING IKON ---
+  static IconData getIconFromString(String serviceName) {
+    String nameLower = serviceName.toLowerCase();
+
+    if (nameLower.contains('sepatu')) {
+      return Icons.ice_skating;
+    }
+    if (nameLower.contains('jas') || nameLower.contains('dry clean')) {
+      return Icons.dry_cleaning;
+    }
+    if (nameLower.contains('bed cover') || nameLower.contains('sprei')) {
+      return Icons.king_bed;
+    }
+    if (nameLower.contains('kemeja') || nameLower.contains('gaun')) {
+      return Icons.checkroom;
+    }
+    if (nameLower.contains('setrika')) {
+      return Icons.iron;
+    }
+    if (nameLower.contains('tas') || nameLower.contains('ransel')) {
+      return Icons.shopping_bag; // Atau Icons.backpack
+    }
+    
+    // Ikon Default
+    return Icons.local_laundry_service;
   }
 }
 
@@ -48,9 +84,9 @@ class CatalogScreen extends GetView<CatalogController> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Layanan'),
-        backgroundColor: const Color(0xFF005f9f),
         elevation: 1,
       ),
+      // Background scaffold akan otomatis ikut tema
       body: Obx(() {
         if (catalogController.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -94,7 +130,7 @@ class _ServiceCardState extends State<ServiceCard> {
 
   @override
   Widget build(BuildContext context) {
-    const Color cardColor = Colors.white;
+    final Color cardColor = Theme.of(context).colorScheme.surfaceContainerHigh;
     final double elevation = _isPressed ? 8.0 : 2.0;
     final EdgeInsets padding = _isPressed
         ? const EdgeInsets.all(16.0)
@@ -115,11 +151,12 @@ class _ServiceCardState extends State<ServiceCard> {
         curve: Curves.easeInOut,
         padding: padding,
         decoration: BoxDecoration(
-          color: cardColor,
+          color: cardColor, // Menggunakan warna kartu dari tema
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              // Ganti `Colors.black` dengan `shadowColor` dari tema
+              color: Theme.of(context).shadowColor.withOpacity(0.1),
               blurRadius: elevation,
               offset: const Offset(0, 4),
             ),
@@ -128,9 +165,9 @@ class _ServiceCardState extends State<ServiceCard> {
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             if (constraints.maxWidth < 180) {
-              return buildCompactCard();
+              return buildCompactCard(context); // Beri context
             } else {
-              return buildWideCard();
+              return buildWideCard(context); // Beri context
             }
           },
         ),
@@ -138,7 +175,8 @@ class _ServiceCardState extends State<ServiceCard> {
     );
   }
 
-  Widget buildCompactCard() {
+  // Tambahkan `context` untuk mengambil warna tema
+  Widget buildCompactCard(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -150,7 +188,8 @@ class _ServiceCardState extends State<ServiceCard> {
             child: Icon(
               widget.service.icon,
               size: 40,
-              color: const Color(0xFF005f9f),
+              // Ganti warna statis dengan warna tema
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),
@@ -158,6 +197,7 @@ class _ServiceCardState extends State<ServiceCard> {
         Text(
           widget.service.name,
           textAlign: TextAlign.center,
+          // Warna teks otomatis dari tema
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -165,13 +205,15 @@ class _ServiceCardState extends State<ServiceCard> {
         const SizedBox(height: 4),
         Text(
           widget.service.price,
+          // Biarkan merah, ini warna semantik untuk harga
           style: TextStyle(color: Colors.red[700], fontSize: 12),
         ),
       ],
     );
   }
 
-  Widget buildWideCard() {
+  // Tambahkan `context` untuk mengambil warna tema
+  Widget buildWideCard(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -182,7 +224,8 @@ class _ServiceCardState extends State<ServiceCard> {
             child: Icon(
               widget.service.icon,
               size: 48,
-              color: const Color(0xFF005f9f),
+              // Ganti warna statis dengan warna tema
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),
@@ -202,6 +245,7 @@ class _ServiceCardState extends State<ServiceCard> {
               const SizedBox(height: 4),
               Text(
                 widget.service.price,
+                // Biarkan merah, ini warna semantik untuk harga
                 style: TextStyle(color: Colors.red[700], fontSize: 14),
               ),
             ],

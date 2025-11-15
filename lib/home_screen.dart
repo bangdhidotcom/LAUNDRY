@@ -1,12 +1,16 @@
+// [GANTI SELURUH ISI FILE lib/home_screen.dart]
+
 import 'package:flutter/material.dart';
-import 'package:laundry3b1titik0/catalog_screen.dart';
 import 'package:get/get.dart';
+import 'package:laundry3b1titik0/catalog_screen.dart'; // Tetap ada untuk tombol 'Manajemen Layanan' (SOP)
 import 'package:laundry3b1titik0/screens/delivery_screen.dart';
 import 'package:laundry3b1titik0/pages/data_outlet_page.dart';
 import 'package:laundry3b1titik0/pages/laporan_keuangan_page.dart';
 import 'package:laundry3b1titik0/pages/data_pelanggan_page.dart';
 import 'package:laundry3b1titik0/pages/manajemen_promo_page.dart';
-import 'package:laundry3b1titik0/pages/atur_harga_page.dart';
+// --- PERUBAHAN NAMA FILE ---
+import 'package:laundry3b1titik0/pages/kelola_layanan_page.dart'; // Import file baru
+// --- AKHIR PERUBAHAN ---
 import 'package:laundry3b1titik0/pages/panduan_sop_page.dart';
 import 'package:laundry3b1titik0/pages/lihat_antrian_page.dart';
 import 'package:laundry3b1titik0/pages/manajemen_order_page.dart';
@@ -16,12 +20,9 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF005f9f);
-
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: primaryColor,
         elevation: 0.0,
         title: Row(
           children: [
@@ -35,7 +36,6 @@ class HomeScreen extends StatelessWidget {
             const Text(
               'Laundry 3B - Admin',
               style: TextStyle(
-                color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -44,7 +44,7 @@ class HomeScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.white),
+            icon: const Icon(Icons.notifications_none),
             onPressed: () {},
           ),
         ],
@@ -52,18 +52,13 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         children: [
           _buildWelcomeHeader(context),
-
           Transform.translate(
             offset: const Offset(0.0, -70.0),
             child: _buildInfoCard(context),
           ),
-
           _buildMenuSection(context),
-
           const SizedBox(height: 24),
-
-          _buildPromoSection(),
-
+          _buildPromoSection(context),
           const SizedBox(height: 24),
         ],
       ),
@@ -71,12 +66,10 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildWelcomeHeader(BuildContext context) {
-    const Color primaryColor = Color(0xFF005f9f);
-
     return Container(
       padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 100.0),
       decoration: const BoxDecoration(
-        color: primaryColor,
+        color: Color(0xFF005f9f),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       child: const Column(
@@ -101,14 +94,15 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildInfoCard(BuildContext context) {
-    const Color cardColor = Color.fromARGB(255, 255, 3, 3);
+    final Color cardColor = Theme.of(context).colorScheme.errorContainer;
+    final Color textColor = Theme.of(context).colorScheme.onErrorContainer;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: cardColor,
+          color: cardColor, // Gunakan warna errorContainer
           borderRadius: BorderRadius.circular(50),
           boxShadow: [
             BoxShadow(
@@ -121,15 +115,16 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Order Perlu Perhatian',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(
+                  color: textColor.withOpacity(0.8), fontSize: 14),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               '7 Order Antri Pickup',
               style: TextStyle(
-                color: Colors.white,
+                color: textColor, // Gunakan warna onErrorContainer
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -140,8 +135,8 @@ class HomeScreen extends StatelessWidget {
                 Get.to(() => const LihatAntrianPage());
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white54),
+                foregroundColor: textColor, // Gunakan warna onErrorContainer
+                side: BorderSide(color: textColor.withOpacity(0.5)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
@@ -160,21 +155,23 @@ class HomeScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+            BoxShadow(
+                color: Theme.of(context).shadowColor.withOpacity(0.05),
+                blurRadius: 10),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Panel Kontrol',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF333333),
+                color: Theme.of(context).textTheme.titleMedium?.color,
               ),
             ),
             const SizedBox(height: 16),
@@ -192,11 +189,15 @@ class HomeScreen extends StatelessWidget {
         'label': 'Manajemen Order',
         'page': const ManajemenOrderPage(),
       },
+      // --- PERUBAHAN UI MENU ---
+      // Tombol ini (Manajemen Layanan) kita pertahankan
+      // Sesuai konsep, ini untuk melihat SOP
       {
         'icon': Icons.inventory_2,
         'label': 'Manajemen Layanan',
         'page': const CatalogScreen(),
       },
+      // --- AKHIR PERUBAHAN ---
       {
         'icon': Icons.delivery_dining,
         'label': 'Manajemen Kurir',
@@ -223,9 +224,9 @@ class HomeScreen extends StatelessWidget {
         'page': const ManajemenPromoPage(),
       },
       {
-        'icon': Icons.price_check,
-        'label': 'Atur Harga',
-        'page': const AturHargaPage(),
+        'icon': Icons.edit_note,
+        'label': 'Kelola Layanan',
+        'page': const KelolaLayananPage(),
       },
       {
         'icon': Icons.menu_book,
@@ -238,8 +239,8 @@ class HomeScreen extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: menuItems.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 100.0,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -254,32 +255,32 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPromoSection() {
+  Widget _buildPromoSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Pemberitahuan Sistem',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF333333),
+              color: Theme.of(context).textTheme.titleMedium?.color,
             ),
           ),
           const SizedBox(height: 16),
-          _buildPromoBanner(),
+          _buildPromoBanner(context),
         ],
       ),
     );
   }
 
-  Widget _buildPromoBanner() {
+  Widget _buildPromoBanner(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.teal[50],
+        color: Theme.of(context).colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -293,19 +294,23 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.teal[700],
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Mesin Pengering #2 dijadwalkan maintenance sore ini pukul 16:00.',
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
+                  style: TextStyle(
+                      fontSize: 14,
+                      color:
+                          Theme.of(context).colorScheme.onSecondaryContainer),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 16),
-          Icon(Icons.campaign, color: Colors.teal[300], size: 50),
+          Icon(Icons.campaign,
+              color: Theme.of(context).colorScheme.secondary, size: 50),
         ],
       ),
     );
@@ -331,14 +336,14 @@ class HomeMenuButton extends StatefulWidget {
 class _HomeMenuButtonState extends State<HomeMenuButton> {
   bool _isInteracting = false;
   static const Duration _animDuration = Duration(milliseconds: 150);
-  static const Color _primaryColor = Color(0xFF005f9f);
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryColor = Theme.of(context).colorScheme.primary;
     final scale = _isInteracting ? 0.95 : 1.0;
     final bgColor = _isInteracting
-        ? _primaryColor.withOpacity(0.2)
-        : _primaryColor.withOpacity(0.1);
+        ? primaryColor.withOpacity(0.2)
+        : primaryColor.withOpacity(0.1);
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _isInteracting = true),
@@ -365,13 +370,15 @@ class _HomeMenuButtonState extends State<HomeMenuButton> {
                 color: bgColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(widget.icon, color: _primaryColor, size: 28),
+              child: Icon(widget.icon, color: primaryColor, size: 28),
             ),
             const SizedBox(height: 8),
             Text(
               widget.label,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Colors.black54),
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).textTheme.bodySmall?.color),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

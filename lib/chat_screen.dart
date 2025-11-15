@@ -8,7 +8,6 @@ class ChatScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Service'),
-        backgroundColor: const Color(0xFF005f9f),
       ),
       body: const Center(
         child: Text(

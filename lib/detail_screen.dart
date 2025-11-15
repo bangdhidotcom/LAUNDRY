@@ -8,11 +8,15 @@ class DetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ambil warna dari Tema
+    final textTheme = Theme.of(context).textTheme;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Ganti backgroundColor: Colors.white
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Data Layanan: ${service.name}'),
-        backgroundColor: const Color(0xFF005f9f),
+        title: const Text('SOP & Catatan Layanan'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -26,64 +30,99 @@ class DetailScreen extends StatelessWidget {
                 child: Icon(
                   service.icon,
                   size: 120,
-                  color: const Color(0xFF005f9f),
+                  // Ganti warna statis
+                  color: colorScheme.primary,
                 ),
               ),
             ),
             const SizedBox(height: 24),
             Text(
               service.name,
-              style: const TextStyle(
+              style: textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                fontSize: 28,
-                color: Color(0xFF333333),
+                // Warna teks otomatis dari tema
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               service.price,
-              style: TextStyle(
+              style: textTheme.headlineSmall?.copyWith(
+                // Biarkan merah, ini semantik
                 color: Colors.red[700],
-                fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 32),
-
-            const Text(
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
               'Ringkasan SOP (Standard Operating Procedure):',
-              style: TextStyle(
-                fontSize: 16,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                // Warna teks otomatis dari tema
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              _getSop(service.name),
+              _getSop(service.name), // SOP Statis
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 15,
+              style: textTheme.bodyMedium?.copyWith(
                 height: 1.5,
-                color: Colors.black54,
+                // Warna teks otomatis dari tema
               ),
             ),
+
+            // Tampilkan deskripsi/catatan tambahan jika ada
+            if (service.description.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 16),
+              Text(
+                'Catatan Tambahan:',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  // Warna teks otomatis dari tema
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                service.description, // Data dari "Kelola Layanan"
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  height: 1.5,
+                  // Warna teks otomatis dari tema
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ]
           ],
         ),
       ),
     );
   }
 
+  // Fungsi SOP Statis ini kita biarkan
   String _getSop(String serviceName) {
-    if (serviceName.contains('Sepatu')) {
+    // Kita buat case-insensitive agar lebih kuat
+    String nameLower = serviceName.toLowerCase();
+
+    if (nameLower.contains('sepatu')) {
       return '1. Cek bahan sepatu (Canvas/Kulit). \n2. Gunakan sikat & sabun khusus. \n3. Keringkan di ruang angin, JANGAN dijemur matahari langsung.';
     }
-    if (serviceName.contains('Dry Cleaning')) {
+    if (nameLower.contains('dry clean') || nameLower.contains('jas')) {
       return '1. Cek label garmen. \n2. Gunakan solvent (Perchloroethylene) di mesin Dry Clean. \n3. Proses finishing menggunakan setrika uap khusus.';
     }
-    if (serviceName.contains('Bed Cover')) {
+    if (nameLower.contains('bed cover')) {
       return '1. Gunakan mesin kapasitas besar (min. 15kg). \n2. Pastikan bed cover terendam sempurna. \n3. Proses pengeringan 100% di mesin pengering agar tidak apek.';
     }
+    if (nameLower.contains('tas') || nameLower.contains('ransel')) {
+      return '1. Kosongkan isi tas. \n2. Bersihkan debu (vakum jika perlu). \n3. Gunakan sikat halus & sabun khusus. \n4. Keringkan di ruang angin.';
+    }
+    if (nameLower.contains('setrika')) {
+      return '1. Siapkan setrika uap. \n2. Semprotkan pelicin jika perlu. \n3. Lipat & kemas dengan rapi.';
+    }
+    // Default SOP
     return '1. Pisahkan pakaian putih & berwarna. \n2. Timbang berat kering. \n3. Masukkan ke mesin cuci, set deterjen & pelembut. \n4. Keringkan 100% di mesin pengering.';
   }
 }

@@ -8,7 +8,6 @@ class OrdersScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Order'),
-        backgroundColor: const Color(0xFF005f9f),
       ),
       body: const Center(
         child: Padding(

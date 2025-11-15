@@ -20,7 +20,6 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Order'),
-        backgroundColor: const Color(0xFF005f9f),
         elevation: 0,
       ),
       body: Column(

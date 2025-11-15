@@ -10,7 +10,7 @@ import 'package:laundry3b1titik0/pages/data_outlet_page.dart';
 import 'package:laundry3b1titik0/pages/laporan_keuangan_page.dart';
 import 'package:laundry3b1titik0/pages/data_pelanggan_page.dart';
 import 'package:laundry3b1titik0/pages/manajemen_promo_page.dart';
-import 'package:laundry3b1titik0/pages/atur_harga_page.dart';
+import 'package:laundry3b1titik0/pages/kelola_layanan_page.dart';
 import 'package:laundry3b1titik0/pages/panduan_sop_page.dart';
 import 'package:laundry3b1titik0/pages/lihat_antrian_page.dart';
 
@@ -37,8 +37,8 @@ class MainPage extends GetView<MainPageController> {
       bottomNavigationBar: Obx(
         () => BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: Theme.of(context).primaryColor,
-          unselectedItemColor: Colors.grey,
+          selectedItemColor: Theme.of(context).colorScheme.primary,
+          unselectedItemColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
 
           items: const <BottomNavigationBarItem>[
             BottomNavigationBarItem(

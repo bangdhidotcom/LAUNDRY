@@ -12,7 +12,6 @@ class DeliveryScreen extends GetView<DeliveryController> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Kurir & Cuaca'),
-        backgroundColor: Theme.of(context).primaryColor,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

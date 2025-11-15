@@ -12,7 +12,6 @@ class ProfileScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pengaturan Admin'),
-        backgroundColor: const Color(0xFF005f9f),
       ),
       body: Obx(
         () => ListView(

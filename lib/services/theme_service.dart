@@ -8,6 +8,9 @@ class ThemeService extends GetxService {
 
   final isDarkMode = false.obs;
 
+  static const Color _seedColor = Color(0xFF005f9f);
+  static const Color _appBarColor = Color(0xFF005f9f);
+
   Future<ThemeService> init() async {
     _prefs = await SharedPreferences.getInstance();
     await loadTheme();
@@ -25,20 +28,33 @@ class ThemeService extends GetxService {
   }
 
   ThemeData getLightTheme() {
-    return ThemeData(
-      primarySwatch: Colors.blue,
-      primaryColor: const Color(0xFF005f9f),
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: _seedColor,
       brightness: Brightness.light,
+    );
+    return ThemeData(
       useMaterial3: true,
+      colorScheme: colorScheme,
+
+      appBarTheme: const AppBarTheme(
+        backgroundColor: _appBarColor,
+        foregroundColor: Colors.white,
+      ),
     );
   }
 
   ThemeData getDarkTheme() {
-    return ThemeData(
-      primarySwatch: Colors.blue,
-      primaryColor: const Color(0xFF005f9f),
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: _seedColor,
       brightness: Brightness.dark,
+    );
+    return ThemeData(
       useMaterial3: true,
+      colorScheme: colorScheme,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: _appBarColor,
+        foregroundColor: Colors.white,
+      ),
     );
   }
 }

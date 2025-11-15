@@ -126,9 +126,29 @@ class SupabaseService {
 
   Future<List<Map<String, dynamic>>> getPricing() async {
     try {
-      return await _supabase.from('pricing').select();
+      // --- PERBAIKAN DI SINI ---
+      return await _supabase
+          .from('pricing')
+          .select()
+          .order('service_name', ascending: true); // Tambahkan pengurutan
     } catch (e) {
       throw Exception('Gagal mengambil pricing: $e');
+    }
+  }
+
+  Future<void> updatePricing(int id, Map<String, dynamic> data) async {
+    try {
+      await _supabase.from('pricing').update(data).eq('id', id);
+    } catch (e) {
+      throw Exception('Gagal update harga: $e');
+    }
+  }
+
+  Future<void> deletePricing(int id) async {
+    try {
+      await _supabase.from('pricing').delete().eq('id', id);
+    } catch (e) {
+      throw Exception('Gagal hapus harga: $e');
     }
   }
 
