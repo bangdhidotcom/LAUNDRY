@@ -1,5 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 
 class SupabaseService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -125,13 +128,22 @@ class SupabaseService {
   }
 
   Future<List<Map<String, dynamic>>> getPricing() async {
+    final stopwatch = Stopwatch()..start();
     try {
-      // --- PERBAIKAN DI SINI ---
-      return await _supabase
+      final response = await _supabase
           .from('pricing')
           .select()
-          .order('service_name', ascending: true); // Tambahkan pengurutan
+          .order('service_name', ascending: true);
+          
+      stopwatch.stop();
+      print('===== LAPORAN KECEPATAN (BACA) =====');
+      print('Baca Supabase (Semua pricing): ${stopwatch.elapsedMilliseconds} milliseconds');
+      print('====================================');
+          
+      return response;
     } catch (e) {
+      stopwatch.stop();
+      print('Gagal Baca Supabase: ${e.toString()}');
       throw Exception('Gagal mengambil pricing: $e');
     }
   }
@@ -149,6 +161,51 @@ class SupabaseService {
       await _supabase.from('pricing').delete().eq('id', id);
     } catch (e) {
       throw Exception('Gagal hapus harga: $e');
+    }
+  }
+
+  Future<String> uploadServiceImage(XFile image) async {
+    try {
+      final file = File(image.path);
+      final fileExtension = p.extension(image.name);
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}$fileExtension';
+      final filePath = 'public/$fileName'; // 'public' adalah nama Bucket Anda
+
+      // 1. Upload file
+      await _supabase.storage.from('gambar_layanan').upload(
+            filePath,
+            file,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      // 2. Dapatkan URL publik
+      final publicUrl = _supabase.storage
+          .from('gambar_layanan') // Nama Bucket
+          .getPublicUrl(filePath); // Path file yang sama
+
+      return publicUrl;
+    } catch (e) {
+      throw Exception('Gagal upload gambar: $e');
+    }
+  }
+
+  /// Menghapus gambar layanan dari Supabase Storage berdasarkan URL
+  Future<void> deleteServiceImage(String imageUrl) async {
+    try {
+      // Ekstrak file path dari URL
+      // Contoh URL: https://.../storage/v1/object/public/gambar_layanan/public/12345.jpg
+      // Kita perlu mengambil 'public/12345.jpg'
+      final uri = Uri.parse(imageUrl);
+      final pathSegments = uri.pathSegments;
+      if (pathSegments.length > 2) {
+        // Ambil path setelah nama bucket
+        final filePath = pathSegments.sublist(pathSegments.indexOf('public')).join('/');
+        
+        await _supabase.storage.from('gambar_layanan').remove([filePath]);
+      }
+    } catch (e) {
+      // Tidak perlu throw error fatal, cukup log saja
+      print('Gagal hapus gambar lama (mungkin sudah tidak ada): $e');
     }
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../catalog_screen.dart';
+import 'dart:io'; // Untuk File
+import 'package:image_picker/image_picker.dart';
 
 class KelolaLayananPage extends StatefulWidget {
   const KelolaLayananPage({Key? key}) : super(key: key);
@@ -15,9 +17,11 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  // State untuk melacak mode edit
   bool _isEditing = false;
   int? _editingId;
+  String? _existingImageUrl; 
+  XFile? _newImageFile; 
+  bool _removeImage = false;
   bool _isLoading = false;
 
   List<Map<String, dynamic>> _pricingList = [];
@@ -70,6 +74,9 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
     setState(() {
       _isEditing = false;
       _editingId = null;
+      _newImageFile = null; 
+      _existingImageUrl = null; 
+      _removeImage = false;
     });
   }
 
@@ -80,7 +87,27 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
       _serviceController.text = item['service_name'] ?? '';
       _priceController.text = (item['price'] ?? 0).toString();
       _descriptionController.text = item['description'] ?? '';
+      _existingImageUrl = item['image_url'];
+      _newImageFile = null; 
+      _removeImage = false;
     });
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _newImageFile = image;
+          _removeImage = false; // Batal hapus jika memilih gambar baru
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memilih gambar: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _submitForm() async {
@@ -96,17 +123,37 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
 
     setState(() => _isLoading = true);
 
+    String? finalImageUrl = _existingImageUrl;
+
     try {
+      if (_newImageFile != null) {
+        if (_existingImageUrl != null) {
+          await _supabaseService.deleteServiceImage(_existingImageUrl!);
+        }
+        finalImageUrl = await _supabaseService.uploadServiceImage(_newImageFile!);
+      }
+      else if (_removeImage && _existingImageUrl != null) {
+        await _supabaseService.deleteServiceImage(_existingImageUrl!);
+        finalImageUrl = null; // Set URL jadi null
+      }
+
       final data = {
         'service_name': _serviceController.text,
         'price': double.parse(_priceController.text),
         'description': _descriptionController.text,
         'created_at': DateTime.now().toIso8601String(),
+        'image_url': finalImageUrl,
       };
+
+      final stopwatch = Stopwatch()..start();
 
       if (_isEditing) {
         // --- LOGIKA UPDATE ---
         await _supabaseService.updatePricing(_editingId!, data);
+        stopwatch.stop(); // <-- HENTIKAN
+        print('===== LAPORAN KECEPATAN (TULIS) =====');
+        print('Update Supabase (1 pricing): ${stopwatch.elapsedMilliseconds} milliseconds');
+        print('=====================================');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -115,8 +162,12 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
           ),
         );
       } else {
-        // --- LOGIKA CREATE ---
+        data['created_at'] = DateTime.now().toIso8601String();
         await _supabaseService.setPricing(data);
+        stopwatch.stop(); // <-- HENTIKAN
+        print('===== LAPORAN KECEPATAN (TULIS) =====');
+        print('Insert Supabase (1 pricing): ${stopwatch.elapsedMilliseconds} milliseconds');
+        print('=====================================');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -174,7 +225,10 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
     // 2. Jika admin menekan "Hapus"
     if (konfirmasiHapus) {
       try {
-        // 3. Hapus data di server (di latar belakang)
+        if (item['image_url'] != null) {
+          await _supabaseService.deleteServiceImage(item['image_url']);
+        }
+
         await _supabaseService.deletePricing(item['id']);
 
         if (!mounted) return;
@@ -256,6 +310,48 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
               maxLines: 2,
             ),
             const SizedBox(height: 16),
+            const Text(
+              'Gambar Layanan (Opsional)',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _buildImagePreview(), // Tampilkan preview gambar
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Pilih Gambar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                    ),
+                  ),
+                ),
+                // Tampilkan tombol "Hapus Gambar" hanya jika sedang edit
+                // DAN ada gambar yang ada (baik baru dipilih atau dari database)
+                // DAN user belum menekan "Hapus"
+                if (_isEditing && (_newImageFile != null || _existingImageUrl != null) && !_removeImage)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _newImageFile = null; // Hapus pilihan baru
+                          _removeImage = true; // Tandai untuk dihapus
+                        });
+                      },
+                      icon: const Icon(Icons.delete_forever),
+                      label: const Text('Hapus'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -285,13 +381,81 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
     );
   }
 
+  Widget _buildImagePreview() {
+    Widget preview;
+
+    // 1. Jika user baru memilih gambar
+    if (_newImageFile != null) {
+      preview = Image.file(
+        File(_newImageFile!.path),
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+      );
+    } 
+    // 2. Jika user menekan hapus
+    else if (_removeImage) {
+      preview = Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[400]!),
+        ),
+        child: const Center(
+          child: Text(
+            'Akan dihapus',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+    // 3. Jika sedang edit dan ada gambar dari database
+    else if (_existingImageUrl != null) {
+      preview = Image.network(
+        _existingImageUrl!,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.error, color: Colors.red),
+      );
+    } 
+    // 4. Default (tidak ada gambar)
+    else {
+      preview = Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey[400]!),
+        ),
+        child: const Center(
+          child: Text(
+            'Tidak ada gambar',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8.0),
+      child: preview,
+    );
+  }
+
   Widget _buildPricingListView() {
     if (_isListLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_pricingList.isEmpty) {
-      return const Center(child: Text('Belum ada harga')); //
+      return const Center(child: Text('Belum ada Layanan'));
     }
 
     return ListView.builder(
@@ -300,12 +464,32 @@ class _KelolaLayananPageState extends State<KelolaLayananPage> {
       itemCount: _pricingList.length,
       itemBuilder: (context, index) {
         final item = _pricingList[index];
+        final imageUrl = item['image_url'] as String?;
+
+        // Tentukan widget leading: Gambar atau Ikon
+        Widget leadingWidget;
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          leadingWidget = ClipRRect(
+            borderRadius: BorderRadius.circular(4.0),
+            child: Image.network(
+              imageUrl,
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  const Icon(Icons.broken_image),
+            ),
+          );
+        } else {
+          leadingWidget = Icon(
+            LaundryService.getIconFromString(item['service_name'] ?? ''),
+          );
+        }
+
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: Icon(
-              LaundryService.getIconFromString(item['service_name'] ?? ''),
-            ),
+            leading: leadingWidget, // <-- GUNAKAN WIDGET DINAMIS
             title: Text(item['service_name'] ?? ''),
             subtitle: Text(item['description'] ?? 'Tanpa deskripsi'),
             trailing: Row(

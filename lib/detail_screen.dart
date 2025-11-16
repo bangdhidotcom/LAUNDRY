@@ -12,8 +12,39 @@ class DetailScreen extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
+    Widget displayWidget;
+    String heroTag;
+
+    if (service.imageUrl != null && service.imageUrl!.isNotEmpty) {
+      // 1. Jika ADA URL Gambar
+      heroTag = 'service-image-${service.name}';
+      displayWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(16.0),
+        child: Image.network(
+          service.imageUrl!,
+          fit: BoxFit.cover,
+          width: 120,
+          height: 120,
+          errorBuilder: (context, error, stackTrace) =>
+              Container(
+                width: 120,
+                height: 120,
+                color: Colors.grey[200],
+                child: const Icon(Icons.broken_image, size: 60, color: Colors.grey),
+              ),
+        ),
+      );
+    } else {
+      // 2. Jika TIDAK ADA URL, pakai Ikon Otomatis
+      heroTag = 'service-icon-${service.name}';
+      displayWidget = Icon(
+        service.icon,
+        size: 120,
+        color: colorScheme.primary,
+      );
+    }
+
     return Scaffold(
-      // Ganti backgroundColor: Colors.white
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('SOP & Catatan Layanan'),
@@ -24,15 +55,10 @@ class DetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Hero(
-              tag: 'service_icon_${service.name}',
+              tag: heroTag,
               child: Material(
                 type: MaterialType.transparency,
-                child: Icon(
-                  service.icon,
-                  size: 120,
-                  // Ganti warna statis
-                  color: colorScheme.primary,
-                ),
+                child: displayWidget,
               ),
             ),
             const SizedBox(height: 24),

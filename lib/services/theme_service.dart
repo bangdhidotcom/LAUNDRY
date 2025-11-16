@@ -13,13 +13,26 @@ class ThemeService extends GetxService {
 
   Future<ThemeService> init() async {
     _prefs = await SharedPreferences.getInstance();
+    
+    final stopwatch = Stopwatch()..start();
     await loadTheme();
+    stopwatch.stop();
+    print('===== LAPORAN KECEPATAN (BACA) =====');
+    print('Baca SharedPreferences (Tema): ${stopwatch.elapsedMicroseconds} microseconds');
+    print('====================================');
+    
     return this;
   }
 
   Future<void> saveTheme(bool darkMode) async {
+    final stopwatch = Stopwatch()..start();
     isDarkMode.value = darkMode;
     await _prefs.setBool(_themeKey, darkMode);
+    stopwatch.stop();
+    print('===== LAPORAN KECEPATAN (TULIS) =====');
+    print('Tulis SharedPreferences (Tema): ${stopwatch.elapsedMicroseconds} microseconds');
+    print('=====================================');
+
     Get.changeThemeMode(darkMode ? ThemeMode.dark : ThemeMode.light);
   }
 

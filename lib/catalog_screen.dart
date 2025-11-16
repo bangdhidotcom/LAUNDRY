@@ -1,4 +1,4 @@
-// [GANTI SELURUH ISI FILE lib/catalog_screen.dart]
+// [GANTI SELURUH ISI FILE: lib/catalog_screen.dart]
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -10,21 +10,19 @@ class LaundryService {
   final String price;
   final IconData icon;
   final String description;
+  final String? imageUrl; // <-- TAMBAHKAN INI
 
   LaundryService({
     required this.name,
     required this.price,
     required this.icon,
     required this.description,
+    this.imageUrl, // <-- TAMBAHKAN INI
   });
 
   factory LaundryService.fromJson(Map<String, dynamic> json) {
-    // --- PERBAIKAN LOGIKA IKON (SMART MAPPING) ---
-    // Kita tidak membaca 'icon_name' dari Supabase
-    // Kita MENGANALISIS 'service_name'
     final serviceName = json['service_name'] as String? ?? 'Unknown Service';
     final iconData = getIconFromString(serviceName);
-    // --- AKHIR PERBAIKAN ---
 
     String priceString;
     final priceNum = (json['price'] as num?)?.toDouble();
@@ -38,12 +36,13 @@ class LaundryService {
     return LaundryService(
       name: serviceName,
       price: priceString,
-      icon: iconData, // Gunakan ikon dinamis hasil analisis
+      icon: iconData,
       description: json['description'] ?? '',
+      imageUrl: json['image_url'] as String?, // <-- TAMBAHKAN INI
     );
   }
 
-  // --- LOGIKA SMART MAPPING IKON ---
+  // --- LOGIKA SMART MAPPING IKON (TETAP SAMA) ---
   static IconData getIconFromString(String serviceName) {
     String nameLower = serviceName.toLowerCase();
 
@@ -63,10 +62,9 @@ class LaundryService {
       return Icons.iron;
     }
     if (nameLower.contains('tas') || nameLower.contains('ransel')) {
-      return Icons.shopping_bag; // Atau Icons.backpack
+      return Icons.shopping_bag;
     }
     
-    // Ikon Default
     return Icons.local_laundry_service;
   }
 }
@@ -85,8 +83,16 @@ class CatalogScreen extends GetView<CatalogController> {
       appBar: AppBar(
         title: const Text('Manajemen Layanan'),
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              catalogController.refreshServices();
+            },
+            tooltip: 'Refresh Data',
+          ),
+        ],
       ),
-      // Background scaffold akan otomatis ikut tema
       body: Obx(() {
         if (catalogController.isLoading.value) {
           return const Center(child: CircularProgressIndicator());
@@ -151,11 +157,10 @@ class _ServiceCardState extends State<ServiceCard> {
         curve: Curves.easeInOut,
         padding: padding,
         decoration: BoxDecoration(
-          color: cardColor, // Menggunakan warna kartu dari tema
+          color: cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              // Ganti `Colors.black` dengan `shadowColor` dari tema
               color: Theme.of(context).shadowColor.withOpacity(0.1),
               blurRadius: elevation,
               offset: const Offset(0, 4),
@@ -164,40 +169,77 @@ class _ServiceCardState extends State<ServiceCard> {
         ),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            if (constraints.maxWidth < 180) {
-              return buildCompactCard(context); // Beri context
-            } else {
-              return buildWideCard(context); // Beri context
-            }
+            // Kita tidak perlu lagi buildCompactCard/buildWideCard
+            // Kita satukan logikanya agar lebih mudah dibaca
+            return buildCardContent(context);
           },
         ),
       ),
     );
   }
 
-  // Tambahkan `context` untuk mengambil warna tema
-  Widget buildCompactCard(BuildContext context) {
+  // --- WIDGET BARU UNTUK KONTEN KARTU ---
+  Widget buildCardContent(BuildContext context) {
+    final service = widget.service;
+    Widget displayWidget;
+    String heroTag;
+
+    // --- LOGIKA FALLBACK ---
+    if (service.imageUrl != null && service.imageUrl!.isNotEmpty) {
+      // 1. Jika ADA URL Gambar
+      heroTag = 'service-image-${service.name}';
+      displayWidget = ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(
+          service.imageUrl!,
+          fit: BoxFit.cover,
+          width: 50, // Ukuran bisa disesuaikan
+          height: 50,
+          // Loading builder agar rapi
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const SizedBox(
+              width: 50,
+              height: 50,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          },
+          // Error builder jika gagal load
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 50,
+              height: 50,
+              color: Colors.grey[200],
+              child: const Icon(Icons.broken_image, size: 30, color: Colors.grey),
+            );
+          },
+        ),
+      );
+    } else {
+      // 2. Jika TIDAK ADA URL, pakai Ikon Otomatis
+      heroTag = 'service-icon-${service.name}';
+      displayWidget = Icon(
+        service.icon,
+        size: 40,
+        color: Theme.of(context).colorScheme.primary,
+      );
+    }
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Hero(
-          tag: 'service_icon_${widget.service.name}',
+          tag: heroTag, // Gunakan tag dinamis
           child: Material(
             type: MaterialType.transparency,
-            child: Icon(
-              widget.service.icon,
-              size: 40,
-              // Ganti warna statis dengan warna tema
-              color: Theme.of(context).colorScheme.primary,
-            ),
+            child: displayWidget, // Tampilkan widget dinamis
           ),
         ),
         const SizedBox(height: 12),
         Text(
           widget.service.name,
           textAlign: TextAlign.center,
-          // Warna teks otomatis dari tema
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
@@ -205,51 +247,7 @@ class _ServiceCardState extends State<ServiceCard> {
         const SizedBox(height: 4),
         Text(
           widget.service.price,
-          // Biarkan merah, ini warna semantik untuk harga
           style: TextStyle(color: Colors.red[700], fontSize: 12),
-        ),
-      ],
-    );
-  }
-
-  // Tambahkan `context` untuk mengambil warna tema
-  Widget buildWideCard(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Hero(
-          tag: 'service_icon_${widget.service.name}',
-          child: Material(
-            type: MaterialType.transparency,
-            child: Icon(
-              widget.service.icon,
-              size: 48,
-              // Ganti warna statis dengan warna tema
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.service.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                widget.service.price,
-                // Biarkan merah, ini warna semantik untuk harga
-                style: TextStyle(color: Colors.red[700], fontSize: 14),
-              ),
-            ],
-          ),
         ),
       ],
     );
