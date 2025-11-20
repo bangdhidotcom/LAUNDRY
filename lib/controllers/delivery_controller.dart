@@ -1,5 +1,7 @@
 // [GANTI SELURUH ISI FILE lib/controllers/delivery_controller.dart]
 
+// ignore_for_file: avoid_print, duplicate_ignore
+
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -112,6 +114,7 @@ class DeliveryController extends GetxController {
     if (_weatherBox.isNotEmpty) {
       final stopwatch = Stopwatch()..start();
       weatherData.value = _weatherBox.getAt(0);
+      // ignore: avoid_print
       print('Loaded cached weather data: ${weatherData.value?.cityName}');
       stopwatch.stop();
       print('===== LAPORAN KECEPATAN (BACA) =====');
@@ -173,6 +176,7 @@ class DeliveryController extends GetxController {
       }
 
       final firstRainEvent =
+          // ignore: unnecessary_cast
           upcomingForecastsToday.cast<ForecastItem?>().firstWhere(
                 (item) =>
                     item != null &&
@@ -189,6 +193,7 @@ class DeliveryController extends GetxController {
         final rainTimeStr = '${rainStartTime.hour}:00';
 
         final clearWeatherAfterRain =
+            // ignore: unnecessary_cast
             forecastList.cast<ForecastItem?>().firstWhere(
                   (item) =>
                       item != null &&

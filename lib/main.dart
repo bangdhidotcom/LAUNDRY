@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:laundry3b1titik0/splash_screen.dart';
+import 'package:laundry3b1titik0/screens/splash_screen.dart';
 import 'package:laundry3b1titik0/services/theme_service.dart';
 import 'package:laundry3b1titik0/models/weather_model.dart';
 import 'package:laundry3b1titik0/models/forecast_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive
+  await dotenv.load(fileName: ".env");
+  
   await Hive.initFlutter();
   Hive.registerAdapter(WeatherModelAdapter());
   Hive.registerAdapter(ForecastModelAdapter());
   Hive.registerAdapter(ForecastItemAdapter());
 
-  // Initialize Supabase
   await Supabase.initialize(
-    url: 'https://gozewnowaiddmlvjvffu.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvemV3bm93YWlkZG1sdmp2ZmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3NjU4MTEsImV4cCI6MjA3ODM0MTgxMX0.C8tC1RN4HssBtN-pW3QvOaYa94TrPuHIohd21TE__ME',
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
   await Get.putAsync(() => ThemeService().init());

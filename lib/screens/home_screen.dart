@@ -1,8 +1,10 @@
 // [GANTI SELURUH ISI FILE lib/home_screen.dart]
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:laundry3b1titik0/catalog_screen.dart'; // Tetap ada untuk tombol 'Manajemen Layanan' (SOP)
+import 'package:laundry3b1titik0/screens/catalog_screen.dart'; // Tetap ada untuk tombol 'Manajemen Layanan' (SOP)
 import 'package:laundry3b1titik0/screens/delivery_screen.dart';
 import 'package:laundry3b1titik0/pages/data_outlet_page.dart';
 import 'package:laundry3b1titik0/pages/laporan_keuangan_page.dart';

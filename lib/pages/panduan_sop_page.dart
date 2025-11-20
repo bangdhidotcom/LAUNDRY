@@ -1,3 +1,5 @@
+// ignore_for_file: use_super_parameters, unnecessary_to_list_in_spreads
+
 import 'package:flutter/material.dart';
 
 class PanduanSopPage extends StatelessWidget {

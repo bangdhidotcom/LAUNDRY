@@ -1,8 +1,10 @@
 // [GANTI SELURUH ISI FILE lib/controllers/catalog_controller.dart]
 
+// ignore_for_file: avoid_print
+
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:laundry3b1titik0/catalog_screen.dart';
+import 'package:laundry3b1titik0/screens/catalog_screen.dart';
 
 class CatalogController extends GetxController {
   final isLoading = true.obs;

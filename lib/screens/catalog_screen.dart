@@ -1,8 +1,10 @@
 // [GANTI SELURUH ISI FILE: lib/catalog_screen.dart]
 
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:laundry3b1titik0/detail_screen.dart';
+import 'package:laundry3b1titik0/screens/detail_screen.dart';
 import 'package:laundry3b1titik0/controllers/catalog_controller.dart';
 
 class LaundryService {

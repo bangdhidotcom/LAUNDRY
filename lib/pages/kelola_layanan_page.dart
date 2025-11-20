@@ -1,6 +1,8 @@
+// ignore_for_file: use_super_parameters, use_build_context_synchronously, avoid_print
+
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
-import '../catalog_screen.dart';
+import '../screens/catalog_screen.dart';
 import 'dart:io'; // Untuk File
 import 'package:image_picker/image_picker.dart';
 

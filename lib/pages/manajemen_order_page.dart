@@ -1,3 +1,5 @@
+// ignore_for_file: use_super_parameters, deprecated_member_use, use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/order_model.dart';

@@ -1,3 +1,5 @@
+// ignore_for_file: use_super_parameters, curly_braces_in_flow_control_structures, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../models/order_model.dart';
 import '../services/supabase_service.dart';

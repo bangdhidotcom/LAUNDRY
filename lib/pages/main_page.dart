@@ -1,10 +1,12 @@
+// ignore_for_file: unused_import, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:laundry3b1titik0/controllers/main_page_controller.dart';
-import 'package:laundry3b1titik0/home_screen.dart';
-import 'package:laundry3b1titik0/orders_screen.dart';
-import 'package:laundry3b1titik0/chat_screen.dart';
-import 'package:laundry3b1titik0/profile_screen.dart';
+import 'package:laundry3b1titik0/screens/home_screen.dart';
+import 'package:laundry3b1titik0/screens/orders_screen.dart';
+import 'package:laundry3b1titik0/screens/chat_screen.dart';
+import 'package:laundry3b1titik0/screens/profile_screen.dart';
 import 'package:laundry3b1titik0/pages/add_order_page.dart';
 import 'package:laundry3b1titik0/pages/data_outlet_page.dart';
 import 'package:laundry3b1titik0/pages/laporan_keuangan_page.dart';
