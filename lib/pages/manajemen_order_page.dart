@@ -1,10 +1,10 @@
-// ignore_for_file: use_super_parameters, deprecated_member_use, use_build_context_synchronously
+// ignore_for_file: use_super_parameters, deprecated_member_use, use_build_context_synchronously, prefer_final_fields, prefer_final_fields, duplicate_ignore, unused_field
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/order_model.dart';
 import '../services/supabase_service.dart';
-import 'add_order_page.dart';
+import 'add_order_page.dart'; // Pastikan import ini ada
 
 class ManajemenOrderPage extends StatefulWidget {
   const ManajemenOrderPage({Key? key}) : super(key: key);
@@ -16,6 +16,7 @@ class ManajemenOrderPage extends StatefulWidget {
 class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
   final _supabaseService = SupabaseService();
   String _filterStatus = 'all';
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +24,12 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
       appBar: AppBar(
         title: const Text('Manajemen Order'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => setState(() {}),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -36,16 +43,17 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
                 const SizedBox(width: 8),
                 _buildFilterChip('pending', 'Pending'),
                 const SizedBox(width: 8),
-                _buildFilterChip('pickup', 'Pickup'),
+                _buildFilterChip('pickup', 'Jemput'),
                 const SizedBox(width: 8),
-                _buildFilterChip('washing', 'Cuci'),
+                _buildFilterChip('process', 'Cuci'), // Ganti washing jadi process biar konsisten DB
                 const SizedBox(width: 8),
-                _buildFilterChip('ready', 'Siap'),
+                _buildFilterChip('delivery', 'Antar'),
                 const SizedBox(width: 8),
-                _buildFilterChip('completed', 'Selesai'),
+                _buildFilterChip('done', 'Selesai'),
               ],
             ),
           ),
+          
           // Order List
           Expanded(
             child: FutureBuilder<List<Order>>(
@@ -65,7 +73,7 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
 
                 final orders = snapshot.data!;
                 return ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.only(left: 12, right: 12, bottom: 80),
                   itemCount: orders.length,
                   itemBuilder: (context, index) {
                     final order = orders[index];
@@ -77,15 +85,17 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
           ),
         ],
       ),
+      
+      // TOMBOL TAMBAH ORDER (TETAP ADA)
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final result = await Get.to(() => const AddOrderPage());
           if (result == true) {
-            setState(() {});
+            setState(() {}); // Refresh jika ada order baru
           }
         },
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah Order'),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Tambah Order', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF005f9f),
       ),
     );
@@ -113,28 +123,44 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
   Widget _buildOrderCard(Order order) {
     final statusColor = _getStatusColor(order.status);
     final statusLabel = _getStatusLabel(order.status);
+    
+    // Format Rupiah manual (sesuai kode lama bos)
+    final formattedPrice = 'Rp ${order.totalCost.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: statusColor.withOpacity(0.3)),
+      ),
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: statusColor.withOpacity(0.3),
-          child: Icon(Icons.shopping_bag, color: statusColor),
+          backgroundColor: statusColor.withOpacity(0.2),
+          child: Icon(
+            order.status == 'pickup' ? Icons.location_on :
+            order.status == 'delivery' ? Icons.local_shipping :
+            Icons.shopping_bag, 
+            color: statusColor
+          ),
         ),
         title: Text(
           order.customerName,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '${order.serviceType} • ${order.orderDate.day}/${order.orderDate.month}',
+          '${order.serviceType} • $formattedPrice',
         ),
-        trailing: Chip(
-          label: Text(statusLabel),
-          backgroundColor: statusColor.withOpacity(0.2),
-          labelStyle: TextStyle(
-            color: statusColor,
-            fontWeight: FontWeight.bold,
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: statusColor),
+          ),
+          child: Text(
+            statusLabel,
+            style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
           ),
         ),
         children: [
@@ -147,63 +173,81 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
                 const SizedBox(height: 8),
                 _buildInfoRow('Layanan', order.serviceType),
                 const SizedBox(height: 8),
-                _buildInfoRow(
-                  'Biaya',
-                  'Rp ${order.totalCost.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}',
-                ),
+                _buildInfoRow('Alamat', order.address),
                 const SizedBox(height: 8),
-                _buildInfoRow('Status', statusLabel),
+                _buildInfoRow('Biaya', formattedPrice),
                 if (order.notes != null) ...[
                   const SizedBox(height: 8),
                   _buildInfoRow('Catatan', order.notes!),
                 ],
+                
                 const SizedBox(height: 16),
-                // Action Buttons
+                const Divider(),
+                
+                // --- BARIS TOMBOL AKSI ---
                 Row(
                   children: [
-                    // Edit Button
+                    // 1. Tombol Edit
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _showEditDialog(order);
-                        },
-                        icon: const Icon(Icons.edit),
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showEditDialog(order),
+                        icon: const Icon(Icons.edit, size: 18),
                         label: const Text('Edit'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                        ),
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Delete Button
+                    // 2. Tombol Hapus
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _showDeleteConfirmation(order);
-                        },
-                        icon: const Icon(Icons.delete),
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showDeleteConfirmation(order),
+                        icon: const Icon(Icons.delete, size: 18),
                         label: const Text('Hapus'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                        ),
+                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
                       ),
                     ),
                   ],
                 ),
+                
                 const SizedBox(height: 8),
-                // Status Update Button
-                if (order.status != 'completed')
+
+                // 3. TOMBOL STATUS KHUSUS (Fitur Baru yang kita bahas)
+                if (order.status == 'process')
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        _showStatusUpdateDialog(order);
-                      },
-                      icon: const Icon(Icons.check_circle),
-                      label: Text(_getNextStatusLabel(order.status)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                      ),
+                      onPressed: () => _updateStatus(order.id!, 'delivery'),
+                      icon: const Icon(Icons.local_shipping, color: Colors.white),
+                      label: const Text('SIAP ANTAR (Panggil Kurir)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    ),
+                  )
+                else if (order.status == 'pickup')
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: null, // Disabled
+                      icon: const Icon(Icons.timelapse),
+                      label: const Text('Menunggu Kurir Jemput'),
+                    ),
+                  )
+                else if (order.status == 'delivery')
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: null, // Disabled
+                      icon: const Icon(Icons.directions_bike),
+                      label: const Text('Sedang Diantar Kurir'),
+                    ),
+                  )
+                else if (order.status == 'pending')
+                   SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _updateStatus(order.id!, 'pickup'),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Konfirmasi Jemput'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
                     ),
                   ),
               ],
@@ -214,19 +258,25 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
     );
   }
 
+  // --- FUNGSI LOGIKA ---
+
+  Future<void> _updateStatus(String id, String newStatus) async {
+    try {
+      await _supabaseService.updateOrderStatus(id, newStatus);
+      setState(() {}); // Refresh UI
+      Get.snackbar('Sukses', 'Status diubah ke ${newStatus.toUpperCase()}', backgroundColor: Colors.green, colorText: Colors.white);
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal: $e', backgroundColor: Colors.red, colorText: Colors.white);
+    }
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 80,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
-          ),
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
         ),
         Expanded(child: Text(value)),
       ],
@@ -235,118 +285,35 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'pending':
-        return Colors.orange;
-      case 'pickup':
-        return Colors.blue;
-      case 'washing':
-        return Colors.purple;
-      case 'ready':
-        return Colors.teal;
-      case 'completed':
-        return Colors.green;
-      default:
-        return Colors.grey;
+      case 'pending': return Colors.orange;
+      case 'pickup': return Colors.red;
+      case 'process': return Colors.purple; // Cuci
+      case 'washing': return Colors.purple; // Jaga2 kalau ada data lama
+      case 'delivery': return Colors.blue;
+      case 'done': return Colors.green;
+      case 'completed': return Colors.green;
+      default: return Colors.grey;
     }
   }
 
   String _getStatusLabel(String status) {
     switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'pickup':
-        return 'Pickup';
-      case 'washing':
-        return 'Sedang Cuci';
-      case 'ready':
-        return 'Siap Ambil';
-      case 'completed':
-        return 'Selesai';
-      default:
-        return status;
+      case 'pending': return 'Menunggu';
+      case 'pickup': return 'Dijemput';
+      case 'process': return 'Dicuci';
+      case 'washing': return 'Dicuci';
+      case 'delivery': return 'Diantar';
+      case 'done': return 'Selesai';
+      case 'completed': return 'Selesai';
+      default: return status.toUpperCase();
     }
   }
 
-  String _getNextStatusLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Mark as Pickup';
-      case 'pickup':
-        return 'Start Washing';
-      case 'washing':
-        return 'Mark as Ready';
-      case 'ready':
-        return 'Mark as Completed';
-      default:
-        return 'Update Status';
-    }
-  }
-
-  String _getNextStatus(String status) {
-    switch (status) {
-      case 'pending':
-        return 'pickup';
-      case 'pickup':
-        return 'washing';
-      case 'washing':
-        return 'ready';
-      case 'ready':
-        return 'completed';
-      default:
-        return status;
-    }
-  }
-
-  void _showStatusUpdateDialog(Order order) {
-    final nextStatus = _getNextStatus(order.status);
-    final nextStatusLabel = _getStatusLabel(nextStatus);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Status Order'),
-        content: Text('Ubah status menjadi $nextStatusLabel?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await _supabaseService.updateOrderStatus(order.id!, nextStatus);
-                if (!mounted) return;
-                Navigator.pop(context);
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Status diubah ke $nextStatusLabel'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Lanjutkan'),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // --- DIALOG EDIT (KEMBALI SEPERTI KODE BOS) ---
   void _showEditDialog(Order order) {
     final nameController = TextEditingController(text: order.customerName);
     final serviceController = TextEditingController(text: order.serviceType);
-    final costController = TextEditingController(
-      text: order.totalCost.toString(),
-    );
+    final costController = TextEditingController(text: order.totalCost.toString());
 
     showDialog(
       context: context,
@@ -356,30 +323,17 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Nama Pelanggan'),
-              ),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nama Pelanggan')),
               const SizedBox(height: 12),
-              TextField(
-                controller: serviceController,
-                decoration: const InputDecoration(labelText: 'Jenis Layanan'),
-              ),
+              TextField(controller: serviceController, decoration: const InputDecoration(labelText: 'Jenis Layanan')),
               const SizedBox(height: 12),
-              TextField(
-                controller: costController,
-                decoration: const InputDecoration(labelText: 'Biaya'),
-                keyboardType: TextInputType.number,
-              ),
+              TextField(controller: costController, decoration: const InputDecoration(labelText: 'Biaya'), keyboardType: TextInputType.number),
             ],
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          ElevatedButton(
             onPressed: () async {
               try {
                 await _supabaseService.updateOrder(
@@ -390,21 +344,10 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
                 );
                 if (!mounted) return;
                 Navigator.pop(context);
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Order berhasil diupdate'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+                setState(() {}); // Refresh
+                Get.snackbar('Sukses', 'Order berhasil diupdate', backgroundColor: Colors.green, colorText: Colors.white);
               } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                Get.snackbar('Error', '$e', backgroundColor: Colors.red, colorText: Colors.white);
               }
             },
             child: const Text('Simpan'),
@@ -414,44 +357,25 @@ class _ManajemenOrderPageState extends State<ManajemenOrderPage> {
     );
   }
 
+  // --- DIALOG HAPUS (KEMBALI SEPERTI KODE BOS) ---
   void _showDeleteConfirmation(Order order) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Order'),
-        content: Text('Hapus order dari ${order.customerName}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              try {
-                await _supabaseService.deleteOrder(order.id!);
-                if (!mounted) return;
-                Navigator.pop(context);
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Order berhasil dihapus'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+    Get.defaultDialog(
+      title: 'Hapus Order?',
+      middleText: 'Hapus order dari ${order.customerName}?',
+      textConfirm: 'Hapus',
+      textCancel: 'Batal',
+      confirmTextColor: Colors.white,
+      buttonColor: Colors.red,
+      onConfirm: () async {
+        Get.back(); // Tutup dialog
+        try {
+          await _supabaseService.deleteOrder(order.id!);
+          setState(() {}); // Refresh
+          Get.snackbar('Sukses', 'Order dihapus', backgroundColor: Colors.green, colorText: Colors.white);
+        } catch (e) {
+          Get.snackbar('Error', '$e', backgroundColor: Colors.red, colorText: Colors.white);
+        }
+      },
     );
   }
 }

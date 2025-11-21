@@ -53,40 +53,60 @@ class DeliveryController extends GetxController {
   Future<void> refreshMapData() async {
     isMapLoading.value = true;
     try {
-      // 1. Ambil data Kurir & Data Order Logistik (Pickup + Delivery)
-      final courierData = await _supabaseService.getCouriers();
+      // 1. Ambil Data Real dari Database
+      // Kita tidak butuh getCouriers() lagi jika itu cuma dummy
       final activeOrders = await _supabaseService.getActiveLogisticsOrders();
+      final outlets = await _supabaseService.getOutlets(); // Ambil Outlet Real
       
-      final configText = await _supabaseService.getConfigValue('marquee_text');
-      if (configText.isNotEmpty) {
-        customMarquee.value = configText;
-      }
-
       // Update List untuk Bottom Sheet
       orders.value = activeOrders.map((e) => e.toMap()).toList();
       
       mapMarkers.clear();
 
-      // A. MARKER OUTLET (Pusat) - Ikon Toko
-      // (Nanti idealnya ambil dari tabel outlet, tapi sementara pakai centerLocation dulu gapapa)
-      mapMarkers.add(
-        Marker(
-          point: centerLocation,
-          width: 80, height: 80,
-          child: const Column(
-            children: [
-              Icon(Icons.store, color: Colors.indigo, size: 40),
-              Text('Pusat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
-            ],
-          ),
-        ),
-      );
+      // A. MARKER OUTLET (DATA REAL) - Ikon Toko Biru
+      for (var outlet in outlets) {
+        if (outlet['latitude'] != null && outlet['longitude'] != null) {
+          mapMarkers.add(
+            Marker(
+              point: LatLng(outlet['latitude'], outlet['longitude']),
+              width: 80, height: 80,
+              child: Column(
+                children: [
+                  const Icon(Icons.store, color: Colors.blueAccent, size: 40),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blueAccent),
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]
+                    ),
+                    child: Text(
+                      outlet['name'] ?? 'Outlet', 
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: Colors.black),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
 
       // B. MARKER ORDER (Merah = Pickup, Biru = Delivery)
       for (var order in activeOrders) {
         if (order.latitude != null && order.longitude != null) {
-          // Tentukan Warna & Ikon berdasarkan Status
+          
+          // Logika Warna & Ikon
           final isPickup = order.status == 'pickup';
+          // Pastikan status 'delivery' yang ditangkap, bukan 'process'
+          final isDelivery = order.status == 'delivery'; 
+          
+          // Skip jika status bukan pickup atau delivery
+          if (!isPickup && !isDelivery) continue;
+
           final markerColor = isPickup ? Colors.red : Colors.blue;
           final markerIcon = isPickup ? Icons.location_on : Icons.local_shipping;
           final label = isPickup ? "Jemput" : "Antar";
@@ -100,19 +120,22 @@ class DeliveryController extends GetxController {
                   Get.snackbar(
                     '$label: ${order.customerName}', 
                     'Alamat: ${order.address}\nStatus: ${order.status.toUpperCase()}',
-                    backgroundColor: Colors.white,
+                    backgroundColor: Get.isDarkMode ? Colors.grey[900] : Colors.white,
+                    colorText: Get.isDarkMode ? Colors.white : Colors.black,
                     icon: Icon(markerIcon, color: markerColor),
                     duration: const Duration(seconds: 4),
                   );
                 },
                 child: Column(
                   children: [
+                    // Pin dengan animasi pantul (opsional, pakai icon biasa dulu)
                     Icon(markerIcon, color: markerColor, size: 40),
-                    // Label kecil di bawah marker
+                    
+                    // Label kecil
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Get.isDarkMode ? Colors.grey[800] : Colors.white,
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: markerColor),
                       ),
@@ -129,22 +152,8 @@ class DeliveryController extends GetxController {
         }
       }
 
-      // C. MARKER KURIR (Hijau)
-      for (var c in courierData) {
-        if (c['current_lat'] != null && c['current_lng'] != null) {
-          mapMarkers.add(
-            Marker(
-              point: LatLng(c['current_lat'], c['current_lng']),
-              width: 80, height: 80,
-              child: const Column(
-                children: [
-                  Icon(Icons.motorcycle, color: Colors.green, size: 35),
-                ],
-              ),
-            ),
-          );
-        }
-      }
+      // C. MARKER KURIR (SUDAH DIHAPUS KARENA DUMMY)
+      // Jika nanti ada GPS kurir real-time, baru kita uncomment logika ini.
 
     } catch (e) {
       print('Error loading map data: $e');
