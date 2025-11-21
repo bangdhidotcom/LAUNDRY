@@ -23,6 +23,10 @@ dependencies:
   path: ^1.9.1
   intl: ^0.20.2
   flutter_dotenv: ^6.0.0
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  geolocator: ^14.0.2
+  marquee: ^2.3.0
 
 dev_dependencies:
   flutter_test:

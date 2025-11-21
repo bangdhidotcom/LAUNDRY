@@ -1,11 +1,14 @@
-// ignore_for_file: use_super_parameters, curly_braces_in_flow_control_structures, deprecated_member_use
+// ignore_for_file: avoid_print, deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:get/get.dart';
 import '../models/order_model.dart';
 import '../services/supabase_service.dart';
 
 class AddOrderPage extends StatefulWidget {
-  const AddOrderPage({Key? key}) : super(key: key);
+  const AddOrderPage({super.key});
 
   @override
   State<AddOrderPage> createState() => _AddOrderPageState();
@@ -14,65 +17,213 @@ class AddOrderPage extends StatefulWidget {
 class _AddOrderPageState extends State<AddOrderPage> {
   final _formKey = GlobalKey<FormState>();
   final _supabaseService = SupabaseService();
+  final Distance _distanceCalculator = const Distance(); // Alat hitung jarak
 
+  // Controllers
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _notesController = TextEditingController();
+  final _addressController = TextEditingController();
 
+  // State Variables
   String? _selectedService;
-  double _selectedPrice = 0;
-  bool _isLoading = false;
+  double _servicePrice = 0;
   List<Map<String, dynamic>> _services = [];
+  List<Map<String, dynamic>> _outlets = []; // Data Outlet
+  bool _isLoading = false;
+
+  // Delivery & Location Logic
+  String _selectedDelivery = 'Reguler';
+  double _deliveryFee = 10000;
+  LatLng? _pickedLocation;
+  
+  // Hasil Geofencing
+  Map<String, dynamic>? _nearestOutlet;
+  double _distanceToOutlet = 0;
+  double _maxRadiusKm = 6.0;
+
+  final LatLng _defaultCenter = const LatLng(-7.9666, 112.6326); // Malang
 
   @override
   void initState() {
     super.initState();
-    _loadServices();
+    _loadData();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadServices() async {
+  Future<void> _loadData() async {
     try {
-      // Modifikasi: Tambahkan .order() agar daftar layanan terurut
-      final pricing = await _supabaseService.getPricing().then(
-            (data) => data
-              ..sort((a, b) => (a['service_name'] as String)
-                  .compareTo(b['service_name'] as String)),
-          );
-
-      // Jika SupabaseService Anda diperbarui untuk mendukung order:
-      // final pricing = await _supabaseService.getPricing(orderBy: 'service_name');
+      // Load Services, Outlets, DAN CONFIG RADIUS
+      final results = await Future.wait([
+        _supabaseService.getPricing(),
+        _supabaseService.getOutlets(),
+        _supabaseService.getConfigValue('max_radius_km'), // Index 2
+      ]);
       
       setState(() {
-        _services = pricing;
+        _services = results[0] as List<Map<String, dynamic>>;
+        _outlets = results[1] as List<Map<String, dynamic>>;
+        
+        // Parse Radius dari String ke Double
+        final radiusString = results[2] as String;
+        if (radiusString.isNotEmpty) {
+          _maxRadiusKm = double.tryParse(radiusString) ?? 6.0;
+        }
       });
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading services: $e'),
-          backgroundColor: Colors.red,
-        ),
+      print('Error loading data: $e');
+    }
+  }
+
+  void _updateDeliveryFee(String? type) {
+    if (type == null) return;
+    setState(() {
+      _selectedDelivery = type;
+      switch (type) {
+        case 'Hemat': _deliveryFee = 5000; break;
+        case 'Reguler': _deliveryFee = 10000; break;
+        case 'Express': _deliveryFee = 20000; break;
+      }
+    });
+  }
+
+  // --- LOGIKA PINTAR: GEOFENCING ---
+  void _checkNearestOutlet(LatLng userLocation) {
+    if (_outlets.isEmpty) {
+      Get.snackbar('Error', 'Belum ada data outlet di sistem!');
+      return;
+    }
+
+    double minDistance = double.infinity;
+    Map<String, dynamic>? closest;
+
+    // Loop semua outlet untuk cari yang terdekat
+    for (var outlet in _outlets) {
+      if (outlet['latitude'] != null && outlet['longitude'] != null) {
+        final outletLoc = LatLng(outlet['latitude'], outlet['longitude']);
+        // Hitung jarak dalam KM
+        final distance = _distanceCalculator.as(LengthUnit.Kilometer, userLocation, outletLoc);
+        
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = outlet;
+        }
+      }
+    }
+
+    setState(() {
+      _pickedLocation = userLocation;
+      _distanceToOutlet = minDistance;
+      _nearestOutlet = closest;
+    });
+
+    // VALIDASI JARAK
+    if (minDistance > _maxRadiusKm) {
+      // Kasus Kejauhan
+      Get.defaultDialog(
+        title: "Di Luar Jangkauan ⚠️",
+        middleText: "Lokasi Anda berjarak ${minDistance.toStringAsFixed(1)} KM dari outlet terdekat (${closest?['name']}).\n\nBatas maksimal layanan kami adalah $_maxRadiusKm KM.",
+        textConfirm: "Pilih Ulang",
+        confirmTextColor: Colors.white,
+        buttonColor: Colors.red,
+        onConfirm: () {
+          Get.back(); // Tutup dialog
+          _showLocationPicker(); // Buka map lagi
+        },
+        barrierDismissible: false,
+      );
+      // Reset lokasi agar tidak bisa submit
+      setState(() => _pickedLocation = null);
+    } else {
+      // Kasus Aman
+      Get.snackbar(
+        "Lokasi Tercover ✅", 
+        "Outlet Terdekat: ${closest?['name']} (${minDistance.toStringAsFixed(1)} KM)",
+        backgroundColor: Colors.green.withOpacity(0.9),
+        colorText: Colors.white,
+        duration: const Duration(seconds: 4),
       );
     }
+  }
+
+  // --- MAP PICKER ---
+  void _showLocationPicker() {
+    LatLng tempLocation = _pickedLocation ?? _defaultCenter;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        contentPadding: EdgeInsets.zero,
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 450,
+          child: Stack(
+            children: [
+              FlutterMap(
+                options: MapOptions(
+                  initialCenter: tempLocation,
+                  initialZoom: 14,
+                  onTap: (_, latlng) {
+                    tempLocation = latlng;
+                    (ctx as Element).markNeedsBuild();
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.laundry3b',
+                  ),
+                  // Marker User (Merah)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: tempLocation,
+                        width: 80, height: 80,
+                        child: const Icon(Icons.location_on, color: Colors.red, size: 50),
+                      ),
+                    ],
+                  ),
+                  // Marker Semua Outlet (Biru Kecil) - Biar user tau posisi toko
+                  MarkerLayer(
+                    markers: _outlets.map((o) {
+                      if (o['latitude'] == null) return null;
+                      return Marker(
+                        point: LatLng(o['latitude'], o['longitude']),
+                        width: 60, height: 60,
+                        child: const Column(
+                          children: [
+                            Icon(Icons.store, color: Colors.blue, size: 30),
+                          ],
+                        ),
+                      );
+                    }).whereType<Marker>().toList(),
+                  ),
+                ],
+              ),
+              Positioned(
+                bottom: 16, left: 16, right: 16,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _checkNearestOutlet(tempLocation); // JALANKAN LOGIKA GEOFENCING
+                  },
+                  child: const Text('Cek Lokasi Ini'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _submitOrder() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedService == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih jenis layanan'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Get.snackbar('Error', 'Pilih jenis layanan');
+      return;
+    }
+    if (_pickedLocation == null || _nearestOutlet == null) {
+      Get.snackbar('Error', 'Wajib Pin Lokasi & Masuk Radius Area');
       return;
     }
 
@@ -82,39 +233,25 @@ class _AddOrderPageState extends State<AddOrderPage> {
       final order = Order(
         customerName: _nameController.text,
         serviceType: _selectedService!,
-        totalCost: _selectedPrice,
-        address: 'Pending', // Akan diisi saat pickup
+        totalCost: _servicePrice,
+        address: _addressController.text,
         orderDate: DateTime.now(),
         status: 'pending',
         notes: _notesController.text.isEmpty ? null : _notesController.text,
+        latitude: _pickedLocation?.latitude,
+        longitude: _pickedLocation?.longitude,
+        deliveryType: _selectedDelivery,
+        deliveryFee: _deliveryFee,
+        outletId: _nearestOutlet!['id'], // Simpan Outlet ID Terdekat
       );
 
       await _supabaseService.addOrder(order);
 
       if (!mounted) return;
-
-      // Clear form
-      _nameController.clear();
-      _phoneController.clear();
-      _notesController.clear();
-      setState(() {
-        _selectedService = null;
-        _selectedPrice = 0;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order berhasil ditambahkan'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pop(context, true);
+      Get.back(result: true);
+      Get.snackbar('Sukses', 'Order masuk ke ${_nearestOutlet!['name']}');
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      Get.snackbar('Error', 'Gagal: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -122,11 +259,10 @@ class _AddOrderPageState extends State<AddOrderPage> {
 
   @override
   Widget build(BuildContext context) {
+    final grandTotal = _servicePrice + _deliveryFee;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tambah Order Baru'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('Tambah Order Baru')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -134,170 +270,156 @@ class _AddOrderPageState extends State<AddOrderPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
-              const Text(
-                'Form Pemesanan',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 24),
-
-              // Nama Pelanggan
+              _buildSectionTitle('Informasi Pelanggan'),
               TextFormField(
                 controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Nama Pelanggan',
-                  hintText: 'Masukkan nama pelanggan',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.person),
-                ),
-                validator: (value) =>
-                    value?.isEmpty ?? true ? 'Nama tidak boleh kosong' : null,
+                decoration: const InputDecoration(labelText: 'Nama Pelanggan', prefixIcon: Icon(Icons.person)),
+                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
               ),
-              const SizedBox(height: 16),
-
-              // Nomor HP
+              const SizedBox(height: 10),
               TextFormField(
                 controller: _phoneController,
-                decoration: InputDecoration(
-                  labelText: 'Nomor HP',
-                  hintText: '08xxxxxxxxxx',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.phone),
-                ),
+                decoration: const InputDecoration(labelText: 'Nomor HP', prefixIcon: Icon(Icons.phone)),
                 keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value?.isEmpty ?? true)
-                    return 'Nomor HP tidak boleh kosong';
-                  if (!RegExp(r'^(\+62|62|0)[0-9]{9,12}$').hasMatch(value!)) {
-                    return 'Format nomor HP tidak valid';
-                  }
-                  return null;
+              ),
+
+              const SizedBox(height: 20),
+              _buildSectionTitle('Layanan Laundry'),
+              DropdownButtonFormField<String>(
+                value: _selectedService,
+                decoration: const InputDecoration(labelText: 'Pilih Layanan', prefixIcon: Icon(Icons.local_laundry_service)),
+                items: _services.map((s) => DropdownMenuItem(
+                  value: s['service_name'] as String,
+                  child: Text("${s['service_name']} - Rp ${s['price']}"),
+                )).toList(),
+                onChanged: (val) {
+                  setState(() {
+                    _selectedService = val;
+                    final s = _services.firstWhere((element) => element['service_name'] == val);
+                    _servicePrice = (s['price'] ?? 0).toDouble();
+                  });
                 },
               ),
-              const SizedBox(height: 16),
 
-              // Jenis Layanan Dropdown
-              const Text(
-                'Jenis Layanan',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              _services.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
-                      value: _selectedService,
-                      decoration: InputDecoration(
-                        labelText: 'Pilih Layanan',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 20),
+              _buildSectionTitle('Pengiriman & Lokasi'),
+              
+              // Indikator Outlet Terpilih
+              if (_nearestOutlet != null && _pickedLocation != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    border: Border.all(color: Colors.green),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.store, color: Colors.green),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("Tercover oleh: ${_nearestOutlet!['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text("Jarak: ${_distanceToOutlet.toStringAsFixed(2)} KM", style: const TextStyle(fontSize: 12)),
+                          ],
                         ),
-                        prefixIcon: const Icon(Icons.local_laundry_service),
                       ),
-                      items: _services.map((service) {
-                        final name = service['service_name'] ?? 'Unknown';
-                        final price = service['price'] ?? 0;
-                        return DropdownMenuItem<String>(
-                          value: name as String,
-                          child: Text('$name - Rp ${price.toStringAsFixed(0)}'),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedService = value;
-                          if (value != null) {
-                            final service = _services.firstWhere(
-                              (s) => s['service_name'] == value,
-                              orElse: () => {'price': 0},
-                            );
-                            _selectedPrice = (service['price'] ?? 0).toDouble();
-                          }
-                        });
-                      },
-                      validator: (value) =>
-                          value == null ? 'Pilih jenis layanan' : null,
-                    ),
-              const SizedBox(height: 24),
+                      const Icon(Icons.check_circle, color: Colors.green),
+                    ],
+                  ),
+                ),
 
-              // Total Harga (Display Only)
+              DropdownButtonFormField<String>(
+                value: _selectedDelivery,
+                decoration: const InputDecoration(labelText: 'Tipe Pengiriman', prefixIcon: Icon(Icons.motorcycle)),
+                items: ['Hemat', 'Reguler', 'Express'].map((type) {
+                  double fee = (type == 'Hemat') ? 5000 : (type == 'Reguler' ? 10000 : 20000);
+                  return DropdownMenuItem(value: type, child: Text("$type - Rp ${fee.toStringAsFixed(0)}"));
+                }).toList(),
+                onChanged: _updateDeliveryFee,
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _addressController,
+                decoration: const InputDecoration(labelText: 'Alamat Lengkap', prefixIcon: Icon(Icons.home)),
+                maxLines: 2,
+                validator: (v) => v!.isEmpty ? 'Alamat wajib diisi' : null,
+              ),
+              const SizedBox(height: 10),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _showLocationPicker,
+                  icon: Icon(_pickedLocation == null ? Icons.map : Icons.check_circle, 
+                             color: _pickedLocation == null ? Colors.grey : Colors.green),
+                  label: Text(_pickedLocation == null ? 'Pin Lokasi (Cek Radius)' : 'Lokasi Terpilih (Ubah?)'),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _notesController,
+                decoration: const InputDecoration(labelText: 'Catatan Tambahan', prefixIcon: Icon(Icons.note)),
+              ),
+              
+              const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  border: Border.all(color: Colors.green[300]!),
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue[200]!),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Total Biaya',
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Rp ${_selectedPrice.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => '.')}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                      ),
-                    ),
+                    _buildCostRow('Biaya Laundry', _servicePrice),
+                    _buildCostRow('Ongkir ($_selectedDelivery)', _deliveryFee),
+                    const Divider(),
+                    _buildCostRow('TOTAL BAYAR', grandTotal, isTotal: true),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
 
-              // Catatan
-              TextFormField(
-                controller: _notesController,
-                decoration: InputDecoration(
-                  labelText: 'Catatan (Opsional)',
-                  hintText: 'Tambahkan catatan khusus...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(Icons.note),
-                ),
-                maxLines: 3,
-              ),
               const SizedBox(height: 24),
-
-              // Submit Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submitOrder,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF005f9f),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                            strokeWidth: 3,
-                          ),
-                        )
-                      : const Text(
-                          'Tambah Order',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF005f9f)),
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white) 
+                    : const Text('SIMPAN ORDER', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF005f9f))),
+    );
+  }
+
+  Widget _buildCostRow(String label, double value, {bool isTotal = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, fontSize: isTotal ? 16 : 14)),
+          Text('Rp ${value.toStringAsFixed(0)}', style: TextStyle(fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, fontSize: isTotal ? 16 : 14, color: isTotal ? Colors.green[700] : Colors.black)),
+        ],
       ),
     );
   }

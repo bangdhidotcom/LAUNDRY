@@ -38,6 +38,10 @@ class ThemeService extends GetxService {
     Get.changeThemeMode(darkMode ? ThemeMode.dark : ThemeMode.light);
   }
 
+  void switchTheme() {
+    saveTheme(!isDarkMode.value);
+  }
+
   Future<void> loadTheme() async {
     isDarkMode.value = _prefs.getBool(_themeKey) ?? false;
   }

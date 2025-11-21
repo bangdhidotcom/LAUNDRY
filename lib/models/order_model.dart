@@ -1,12 +1,19 @@
 class Order {
   final String? id;
   final String customerName;
-  final String serviceType; // cuci baju, sepatu, bedcover, dll
-  final double totalCost;
+  final String serviceType;
+  final double totalCost; // Harga Laundry
   final String address;
   final DateTime orderDate;
-  final String status; // pending, pickup, washing, ready, completed
+  final String status;
   final String? notes;
+  final int? outletId;
+  
+  // --- FIELD BARU ---
+  final double? latitude;
+  final double? longitude;
+  final String deliveryType; // Hemat, Reguler, Express
+  final double deliveryFee;  // Ongkir
 
   Order({
     this.id,
@@ -17,6 +24,11 @@ class Order {
     required this.orderDate,
     this.status = 'pending',
     this.notes,
+    this.latitude,
+    this.longitude,
+    this.deliveryType = 'Reguler',
+    this.deliveryFee = 0,
+    this.outletId,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +40,11 @@ class Order {
       'order_date': orderDate.toIso8601String(),
       'status': status,
       'notes': notes,
+      'latitude': latitude,
+      'longitude': longitude,
+      'delivery_type': deliveryType,
+      'delivery_fee': deliveryFee,
+      'outlet_id': outletId,
     };
   }
 
@@ -43,6 +60,11 @@ class Order {
       ),
       status: map['status'] ?? 'pending',
       notes: map['notes'],
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
+      deliveryType: map['delivery_type'] ?? 'Reguler',
+      deliveryFee: (map['delivery_fee'] ?? 0).toDouble(),
+      outletId: map['outlet_id'] as int?,
     );
   }
 }

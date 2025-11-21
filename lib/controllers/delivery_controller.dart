@@ -1,222 +1,221 @@
-// [GANTI SELURUH ISI FILE lib/controllers/delivery_controller.dart]
+// ignore_for_file: avoid_print
 
-// ignore_for_file: avoid_print, duplicate_ignore
-
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:latlong2/latlong.dart'; // Wajib ada untuk Peta
+import 'package:flutter_map/flutter_map.dart'; // Wajib ada untuk Marker
 import 'package:laundry3b1titik0/models/weather_model.dart';
 import 'package:laundry3b1titik0/models/forecast_model.dart';
+import 'package:laundry3b1titik0/services/supabase_service.dart';
 
 class DeliveryController extends GetxController {
-  // --- Variabel State Utama ---
-  var isLoading = true.obs;
+  // --- SERVICE ---
+  final _supabaseService = SupabaseService();
+  final Dio _dio = Dio();
+
+  // --- STATE CUACA ---
   var weatherData = Rx<WeatherModel?>(null);
   var forecastList = <ForecastItem>[].obs;
-  var errorMessage = ''.obs;
+  var weatherAdvice = ''.obs;
+  var isWeatherLoading = true.obs;
 
-  // --- Variabel Status Baru ---
-  var networkStatus = "Menginisialisasi...".obs;
-  var isOnline = false.obs;
+  // --- STATE PETA & KURIR ---
+  var mapMarkers = <Marker>[].obs;
+  var couriers = <Map<String, dynamic>>[].obs;
+  var orders = <Map<String, dynamic>>[].obs; // Order yg perlu pickup/delivery
+  var isMapLoading = true.obs;
+  
+  // Posisi Default (Malang Kota) - Sesuaikan dengan kota Anda
+  final LatLng centerLocation = const LatLng(-7.9666, 112.6326);
 
-  // --- Konfigurasi ---
+  // --- KONFIGURASI API CUACA ---
   final String _apiKey = '70497336d3d17d0f79edd66a0b679ff4';
   final String _cityName = 'Malang';
-  late String _apiUrl;
-  late String _forecastApiUrl;
-
-  final Dio _dio = Dio();
-  late Box<WeatherModel> _weatherBox;
-  late Box<ForecastItem> _forecastBox;
 
   @override
   void onInit() {
     super.onInit();
-    _apiUrl =
-        'https://api.openweathermap.org/data/2.5/weather?q=$_cityName&appid=$_apiKey&units=metric&lang=id';
-    _forecastApiUrl =
-        'https://api.openweathermap.org/data/2.5/forecast?q=$_cityName&appid=$_apiKey&units=metric&lang=id';
-    
-    // Panggil fungsi master secara otomatis
-    _initializeAndLoadWeather();
+    _initializeData();
   }
 
-  Future<void> _initializeAndLoadWeather() async {
-    await _initializeHiveBoxes();
+  Future<void> _initializeData() async {
+    // 1. Load Cuaca (Hive Cache + API)
     await _loadWeather();
-  }
-
-  Future<void> _initializeHiveBoxes() async {
-    _weatherBox = await Hive.openBox<WeatherModel>('weather');
-    _forecastBox = await Hive.openBox<ForecastItem>('forecast');
-    // ignore: avoid_print
-    print('Hive boxes initialized');
-  }
-
-  // --- FUNGSI MASTER BARU ---
-  Future<void> _loadWeather() async {
-    isLoading.value = true;
-    errorMessage.value = '';
-    networkStatus.value = "Memuat data cache...";
-    isOnline.value = false;
-
-    // LANGKAH A: Muat dari Cache (Offline-First)
-    _loadCachedData();
-    if (weatherData.value != null) {
-      networkStatus.value = "Offline | Menampilkan data cache";
-    } else {
-      networkStatus.value = "Offline | Cache kosong";
-    }
-
-    // LANGKAH B: Coba Ambil dari API (Cek Online)
-    try {
-      networkStatus.value = "Menghubungi server...";
-      
-      // Ambil data cuaca baru
-      final weatherResponse = await _dio.get(_apiUrl);
-      final newWeather = WeatherModel.fromJson(weatherResponse.data);
-      
-      // Ambil data perkiraan cuaca baru
-      final forecastResponse = await _dio.get(_forecastApiUrl);
-      final newForecastList = ForecastModel.fromJson(forecastResponse.data).list;
-
-      // Jika BERHASIL (Online)
-      isOnline.value = true;
-      networkStatus.value = "Online | Data berhasil diperbarui";
-      
-      // Update UI
-      weatherData.value = newWeather;
-      forecastList.value = newForecastList;
-
-      // Simpan data baru ke Hive
-      await _saveCachedData(newWeather, newForecastList);
-
-    } catch (e) {
-      // Jika GAGAL (Offline)
-      isOnline.value = false;
-      if (weatherData.value != null) {
-        // Jika ada data cache, ini bukan error, hanya info
-        networkStatus.value = "Offline | Menampilkan data cache terakhir";
-        errorMessage.value = "Koneksi gagal. Menampilkan data offline.";
-      } else {
-        // Jika tidak ada data cache, ini baru error
-        networkStatus.value = "Offline | Gagal memuat data";
-        errorMessage.value = "Koneksi gagal dan tidak ada data cache.";
-      }
-      // ignore: avoid_print
-      print('Gagal mengambil data API: ${e.toString()}');
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  void _loadCachedData() {
-    if (_weatherBox.isNotEmpty) {
-      final stopwatch = Stopwatch()..start();
-      weatherData.value = _weatherBox.getAt(0);
-      // ignore: avoid_print
-      print('Loaded cached weather data: ${weatherData.value?.cityName}');
-      stopwatch.stop();
-      print('===== LAPORAN KECEPATAN (BACA) =====');
-      print('Baca Hive (1 data cuaca): ${stopwatch.elapsedMicroseconds} microseconds');
-      print('====================================');
-    }
-    if (_forecastBox.isNotEmpty) {
-      forecastList.clear();
-      forecastList.addAll(_forecastBox.values);
-      print('Loaded ${forecastList.length} cached forecast items');
-    }
-  }
-
-  Future<void> _saveCachedData(
-    WeatherModel weather,
-    List<ForecastItem> forecasts,
-  ) async {
-    await _weatherBox.clear();
-
-    final stopwatch = Stopwatch()..start();
-    await _weatherBox.add(weather);
-    stopwatch.stop();
-    print('===== LAPORAN KECEPATAN (TULIS) =====');
-    print('Tulis Hive (1 data cuaca): ${stopwatch.elapsedMicroseconds} microseconds');
-    print('=====================================');
-
-    await _forecastBox.clear();
-    await _forecastBox.addAll(forecasts); // Gunakan addAll untuk efisiensi
     
-    print('Data baru berhasil disimpan ke Hive cache');
+    // 2. Load Data Peta (Supabase)
+    await refreshMapData();
   }
 
-  // Fungsi getWeatherAdvice tetap sama (tidak perlu diubah)
-  String getWeatherAdvice(WeatherModel weather) {
-    String description = weather.description.toLowerCase();
-    final now = DateTime.now();
+  var customMarquee = ''.obs;
 
-    if (description.contains('hujan') || description.contains('gerimis')) {
-      return 'REKOMENDASI (Hujan Sekarang): Sedang hujan! Ingatkan kurir bawa jas hujan & perlengkapan anti-air. Prioritaskan pickup di zona rawan macet.';
-    }
-    if (description.contains('cerah')) {
-      return 'INFO (Cerah): Kondisi ideal. Operasional kurir dan penjemuran (jika ada) berjalan normal.';
-    }
-
-    if (description.contains('awan') || description.contains('mendung')) {
-      if (forecastList.isEmpty) {
-        return 'INFO (Mendung): Cuaca saat ini mendung. Belum bisa memuat data perkiraan cuaca.';
+  Future<void> refreshMapData() async {
+    isMapLoading.value = true;
+    try {
+      // 1. Ambil data Kurir & Data Order Logistik (Pickup + Delivery)
+      final courierData = await _supabaseService.getCouriers();
+      final activeOrders = await _supabaseService.getActiveLogisticsOrders();
+      
+      final configText = await _supabaseService.getConfigValue('marquee_text');
+      if (configText.isNotEmpty) {
+        customMarquee.value = configText;
       }
 
-      final upcomingForecastsToday = forecastList
-          .where(
-            (item) =>
-                item.dateTime.isAfter(now) && item.dateTime.day == now.day,
-          )
-          .toList();
+      // Update List untuk Bottom Sheet
+      orders.value = activeOrders.map((e) => e.toMap()).toList();
+      
+      mapMarkers.clear();
 
-      if (upcomingForecastsToday.isEmpty) {
-        return 'INFO (Mendung): Cuaca mendung. Sisa hari ini aman (tidak ada perkiraan hujan).';
-      }
+      // A. MARKER OUTLET (Pusat) - Ikon Toko
+      // (Nanti idealnya ambil dari tabel outlet, tapi sementara pakai centerLocation dulu gapapa)
+      mapMarkers.add(
+        Marker(
+          point: centerLocation,
+          width: 80, height: 80,
+          child: const Column(
+            children: [
+              Icon(Icons.store, color: Colors.indigo, size: 40),
+              Text('Pusat', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+            ],
+          ),
+        ),
+      );
 
-      final firstRainEvent =
-          // ignore: unnecessary_cast
-          upcomingForecastsToday.cast<ForecastItem?>().firstWhere(
-                (item) =>
-                    item != null &&
-                    (item.description.contains('hujan') ||
-                        item.description.contains('gerimis')),
-                orElse: () => null,
-              )
-              as ForecastItem?;
+      // B. MARKER ORDER (Merah = Pickup, Biru = Delivery)
+      for (var order in activeOrders) {
+        if (order.latitude != null && order.longitude != null) {
+          // Tentukan Warna & Ikon berdasarkan Status
+          final isPickup = order.status == 'pickup';
+          final markerColor = isPickup ? Colors.red : Colors.blue;
+          final markerIcon = isPickup ? Icons.location_on : Icons.local_shipping;
+          final label = isPickup ? "Jemput" : "Antar";
 
-      if (firstRainEvent == null) {
-        return 'INFO (Mendung): Cuaca mendung, namun perkiraan cuaca sisa hari ini **AMAN** (tidak ada tanda hujan). Operasional normal.';
-      } else {
-        final rainStartTime = firstRainEvent.dateTime;
-        final rainTimeStr = '${rainStartTime.hour}:00';
-
-        final clearWeatherAfterRain =
-            // ignore: unnecessary_cast
-            forecastList.cast<ForecastItem?>().firstWhere(
-                  (item) =>
-                      item != null &&
-                      item.dateTime.isAfter(rainStartTime) &&
-                      !(item.description.contains('hujan') ||
-                          item.description.contains('gerimis')),
-                  orElse: () => null,
-                )
-                as ForecastItem?;
-
-        if (clearWeatherAfterRain != null) {
-          final clearTimeStr = '${clearWeatherAfterRain.dateTime.hour}:00';
-          return 'WASPADA (Mendung): Ada potensi hujan hari ini sekitar jam $rainTimeStr. \nREKOMENDASI: Selesaikan pickup sebelum jam itu. \nINFO: Hujan diperkirakan akan reda sekitar jam $clearTimeStr.';
-        } else {
-          return 'WASPADA (Mendung): Ada potensi hujan hari ini sekitar jam $rainTimeStr dan diperkirakan berlangsung lama. \nREKOMENDASI: Selesaikan semua pickup SEBELUM jam $rainTimeStr.';
+          mapMarkers.add(
+            Marker(
+              point: LatLng(order.latitude!, order.longitude!),
+              width: 80, height: 80,
+              child: GestureDetector(
+                onTap: () {
+                  Get.snackbar(
+                    '$label: ${order.customerName}', 
+                    'Alamat: ${order.address}\nStatus: ${order.status.toUpperCase()}',
+                    backgroundColor: Colors.white,
+                    icon: Icon(markerIcon, color: markerColor),
+                    duration: const Duration(seconds: 4),
+                  );
+                },
+                child: Column(
+                  children: [
+                    Icon(markerIcon, color: markerColor, size: 40),
+                    // Label kecil di bawah marker
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: markerColor),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: markerColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
         }
       }
+
+      // C. MARKER KURIR (Hijau)
+      for (var c in courierData) {
+        if (c['current_lat'] != null && c['current_lng'] != null) {
+          mapMarkers.add(
+            Marker(
+              point: LatLng(c['current_lat'], c['current_lng']),
+              width: 80, height: 80,
+              child: const Column(
+                children: [
+                  Icon(Icons.motorcycle, color: Colors.green, size: 35),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+
+    } catch (e) {
+      print('Error loading map data: $e');
+    } finally {
+      isMapLoading.value = false;
+    }
+  }
+  
+  // Fungsi Eksekusi Status (Dipanggil dari UI nanti)
+  Future<void> advanceOrderStatus(String orderId, String currentStatus) async {
+    String nextStatus = '';
+    String message = '';
+
+    // Logika Perubahan Status
+    if (currentStatus == 'pickup') {
+      nextStatus = 'process'; // Masuk pencucian -> Hilang dari peta
+      message = 'Cucian diterima di outlet. Masuk proses cuci.';
+    } else if (currentStatus == 'delivery') {
+      nextStatus = 'done'; // Selesai -> Hilang dari peta
+      message = 'Pesanan selesai diantar!';
+    } else {
+      return; // Status lain tidak diurus di halaman map
     }
 
-    if (description.contains('kabut') || description.contains('asap')) {
-      return 'INFO (Berkabut): Jarak pandang kurir mungkin terbatas. Ingatkan tim untuk hati-hati di jalan.';
+    try {
+      await _supabaseService.updateOrderStatus(orderId, nextStatus);
+      await refreshMapData(); // Refresh peta biar markernya hilang
+      Get.snackbar('Sukses', message, backgroundColor: Colors.green, colorText: Colors.white);
+    } catch (e) {
+      Get.snackbar('Error', 'Gagal update status: $e');
     }
+  }
 
-    return 'Data cuaca diterima: $description. Belum ada rekomendasi khusus.';
+  // ==================== BAGIAN CUACA (Yg Lama, Disederhanakan) ====================
+
+  Future<void> _loadWeather() async {
+    isWeatherLoading.value = true;
+    try {
+      var box = await Hive.openBox<WeatherModel>('weather');
+      if (box.isNotEmpty) {
+        weatherData.value = box.getAt(0);
+        _updateAdvice();
+      }
+
+      final response = await _dio.get(
+          'https://api.openweathermap.org/data/2.5/weather?q=$_cityName&appid=$_apiKey&units=metric&lang=id');
+      
+      final newWeather = WeatherModel.fromJson(response.data);
+      weatherData.value = newWeather;
+      
+      await box.clear();
+      await box.add(newWeather);
+      _updateAdvice();
+
+    } catch (e) {
+      print('Weather load error: $e');
+    } finally {
+      isWeatherLoading.value = false;
+    }
+  }
+
+  void _updateAdvice() {
+    if (weatherData.value == null) return;
+    String desc = weatherData.value!.description.toLowerCase();
+    
+    if (desc.contains('hujan')) {
+      weatherAdvice.value = "⚠️ HUJAN: Siapkan jas hujan & plastik pelindung!";
+    } else if (desc.contains('mendung') || desc.contains('awan')) {
+      weatherAdvice.value = "⛅ MENDUNG: Waspada potensi hujan, cek rute aman.";
+    } else {
+      weatherAdvice.value = "✅ CERAH: Kondisi aman untuk pengiriman cepat.";
+    }
   }
 }
