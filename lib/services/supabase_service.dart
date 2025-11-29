@@ -49,9 +49,20 @@ class SupabaseService {
 
   Future<void> updateOrderStatus(String id, String newStatus) async {
     try {
-      await _supabase.from('orders').update({
+      // Siapkan data yang mau diupdate
+      final Map<String, dynamic> updates = {
         'status': newStatus,
-      }).eq('id', id);
+      };
+
+      // LOGIKA BARU: 
+      // Jika status berubah jadi 'delivery' (Siap Antar),
+      // kita harus RESET status kurir jadi 'pending'.
+      // Supaya tombol 'Mulai' muncul lagi untuk pengantaran.
+      if (newStatus == 'delivery') {
+        updates['delivery_status'] = 'pending';
+      }
+
+      await _supabase.from('orders').update(updates).eq('id', id);
     } catch (e) {
       throw Exception('Gagal update status: $e');
     }
@@ -344,6 +355,69 @@ class SupabaseService {
     } catch (e) {
       // Error saat logout biasanya tidak fatal, cukup print saja
       print('Error signing out: $e');
+    }
+  }
+
+  // [BARU] Update status logistik (pending -> otw -> arrived)
+  Future<void> updateDeliveryStatus(String orderId, String deliveryStatus) async {
+    try {
+      await _supabase.from('orders').update({
+        'delivery_status': deliveryStatus,
+      }).eq('id', orderId);
+    } catch (e) {
+      throw Exception('Gagal update status pengiriman: $e');
+    }
+  }
+
+  // [BARU] Upload Foto Bukti ke Bucket 'laundry-proofs'
+  Future<String> uploadProofPhoto(File file, String orderId) async {
+    try {
+      final fileExt = p.extension(file.path);
+      // Nama file unik
+      final fileName = 'proof_$orderId${DateTime.now().millisecondsSinceEpoch}$fileExt';
+      final filePath = 'public/$fileName'; // Simpan di folder public/
+
+      // Upload
+      await _supabase.storage.from('laundry-proofs').upload(
+            filePath,
+            file,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+          );
+
+      // Get URL
+      final publicUrl = _supabase.storage
+          .from('laundry-proofs')
+          .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (e) {
+      throw Exception('Gagal upload bukti foto: $e');
+    }
+  }
+
+  // [BARU] Finalisasi Order (Simpan URL Foto & Ganti Status Utama biar hilang dari peta)
+  Future<void> completeLogisticsTask({
+    required String orderId,
+    required String mainStatus, // 'process' (jika pickup) atau 'done' (jika delivery)
+    required String proofUrl,
+    required bool isPickup,
+  }) async {
+    try {
+      final dataToUpdate = {
+        'status': mainStatus, // Ubah status utama -> Order hilang dari list Map
+        'delivery_status': 'completed',
+      };
+
+      if (isPickup) {
+        dataToUpdate['pickup_proof_url'] = proofUrl;
+      } else {
+        dataToUpdate['delivery_proof_url'] = proofUrl;
+        dataToUpdate['payment_status'] = 'paid'; // Asumsi delivery = bayar/lunas
+      }
+
+      await _supabase.from('orders').update(dataToUpdate).eq('id', orderId);
+    } catch (e) {
+      throw Exception('Gagal menyelesaikan tugas: $e');
     }
   }
 }

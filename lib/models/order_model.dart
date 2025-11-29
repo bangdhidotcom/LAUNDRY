@@ -9,11 +9,13 @@ class Order {
   final String? notes;
   final int? outletId;
   
-  // --- FIELD BARU ---
+  // --- FIELD BARU UNTUK LOGISTIK ---
   final double? latitude;
   final double? longitude;
   final String deliveryType; // Hemat, Reguler, Express
   final double deliveryFee;  // Ongkir
+  final String deliveryStatus; // 'pending', 'otw', 'arrived', 'completed'
+  final String? proofPhotoUrl; // URL Bukti Foto
 
   Order({
     this.id,
@@ -28,8 +30,14 @@ class Order {
     this.longitude,
     this.deliveryType = 'Reguler',
     this.deliveryFee = 0,
+    this.deliveryStatus = 'pending', // Default
+    this.proofPhotoUrl,
     this.outletId,
   });
+
+  // Helper Logic
+  bool get isPickup => status.toLowerCase() == 'pickup';
+  bool get isDelivery => status.toLowerCase() == 'delivery';
 
   Map<String, dynamic> toMap() {
     return {
@@ -44,6 +52,7 @@ class Order {
       'longitude': longitude,
       'delivery_type': deliveryType,
       'delivery_fee': deliveryFee,
+      'delivery_status': deliveryStatus,
       'outlet_id': outletId,
     };
   }
@@ -64,6 +73,9 @@ class Order {
       longitude: (map['longitude'] as num?)?.toDouble(),
       deliveryType: map['delivery_type'] ?? 'Reguler',
       deliveryFee: (map['delivery_fee'] ?? 0).toDouble(),
+      // Ambil status logistik, default ke 'pending' jika null
+      deliveryStatus: map['delivery_status'] ?? 'pending',
+      proofPhotoUrl: map['pickup_proof_url'] ?? map['delivery_proof_url'],
       outletId: map['outlet_id'] as int?,
     );
   }

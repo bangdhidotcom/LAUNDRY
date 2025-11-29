@@ -26,144 +26,168 @@ class DeliveryScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // 1. MAP LAYER
-          Obx(() {
-            if (controller.isMapLoading.value && controller.mapMarkers.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            
-            return FlutterMap(
-              mapController: mapController,
-              options: MapOptions(
-                initialCenter: controller.centerLocation,
-                initialZoom: 13.0,
+          // 1. LAYER PETA
+          Obx(() => FlutterMap(
+            mapController: mapController,
+            options: MapOptions(
+              initialCenter: controller.centerLocation,
+              initialZoom: 13.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.laundry3b.app',
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.laundry3b',
-                ),
-                MarkerLayer(markers: controller.mapMarkers.toList()),
-              ],
-            );
-          }),
+              // Layer Garis Rute (Polyline) - Muncul saat OTW
+              PolylineLayer(polylines: controller.routePolyline.toList()),
+              
+              // Layer Pin Tujuan
+              MarkerLayer(markers: controller.mapMarkers.toList()),
 
-          // 2. WEATHER SMART BAR (ATAS)
+              // Layer Posisi Kurir (Titik Biru)
+              if (controller.courierPosition.value != null)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: controller.courierPosition.value!,
+                    width: 24, height: 24,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [BoxShadow(blurRadius: 5, color: Colors.black26)]
+                      ),
+                    ),
+                  )
+                ]),
+            ],
+          )),
+
+          // 2. WEATHER BAR (TETAP DIPERTAHANKAN)
           Positioned(
             top: 10, left: 10, right: 10,
             child: _buildWeatherBar(context, controller),
           ),
 
-          // 3. LIST ANTRIAN (BOTTOM SHEET - DRAGGABLE)
+          // 3. LIST TUGAS (DRAGGABLE SHEET)
           DraggableScrollableSheet(
-            initialChildSize: 0.25, // Tinggi awal (25% layar)
-            minChildSize: 0.15,     // Tinggi minimal saat digeser ke bawah
-            maxChildSize: 0.6,      // Tinggi maksimal saat ditarik ke atas
+            initialChildSize: 0.25,
+            minChildSize: 0.15,
+            maxChildSize: 0.6,
             builder: (context, scrollController) {
-              final isDark = Get.isDarkMode;
-              final sheetColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-              final textColor = isDark ? Colors.white : Colors.black;
-
               return Container(
                 decoration: BoxDecoration(
-                  color: sheetColor, // <-- Warna Dinamis
+                  color: Get.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, spreadRadius: 2)],
+                  boxShadow: [const BoxShadow(color: Colors.black26, blurRadius: 10)],
                 ),
                 child: Obx(() {
-                  final orders = controller.orders; // Pastikan controller punya list order ini
+                  final orders = controller.activeOrders;
                   
                   return Column(
                     children: [
-                      // Handle Bar (Garis kecil buat narik)
+                      // Handle Bar
                       Center(
                         child: Container(
-                          margin: const EdgeInsets.only(top: 10, bottom: 10),
+                          margin: const EdgeInsets.symmetric(vertical: 10),
                           width: 40, height: 5,
                           decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
                         ),
                       ),
                       
-                      // Judul List
+                      // Judul
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text("Antrian Pengantaran (${orders.length})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            const Icon(Icons.list, color: Colors.blue),
+                            Text("Antrian Tugas (${orders.length})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const Icon(Icons.sort, color: Colors.grey),
                           ],
                         ),
                       ),
-                      const Divider(height: 1),
+                      const Divider(),
 
                       // List Data
                       Expanded(
                         child: orders.isEmpty 
-                        ? const Center(child: Text("Tidak ada pengantaran aktif"))
+                        ? const Center(child: Text("Semua tugas selesai! Istirahat.")) 
                         : ListView.builder(
                             controller: scrollController,
                             itemCount: orders.length,
                             itemBuilder: (context, index) {
-                              final data = orders[index];
-                              final lat = data['latitude'] as double?;
-                              final lng = data['longitude'] as double?;
-                              final status = data['status'] as String;
-                              final id = data['id'] as String?; // Pastikan ID diambil sebagai String (Supabase ID)
+                              final order = orders[index];
+                              final isPickup = order.isPickup;
+                              final themeColor = isPickup ? Colors.red : Colors.blue;
+                              
+                              // Logic Tombol
+                              String btnText = "MULAI";
+                              IconData btnIcon = Icons.play_arrow;
+                              Color btnColor = themeColor;
+                              bool isActive = false;
 
-                              // Tentukan UI berdasarkan status
-                              final isPickup = status == 'pickup';
-                              final color = isPickup ? Colors.red : Colors.blue;
-                              final statusText = isPickup ? "Jemput" : "Antar";
-                              final buttonText = isPickup ? "Selesai Jemput" : "Selesai Antar";
+                              if (order.deliveryStatus == 'otw') {
+                                btnText = "SAMPAI / DETAIL";
+                                btnIcon = Icons.flag;
+                                btnColor = Colors.green; // Ubah jadi hijau kalau OTW
+                                isActive = true;
+                              }
+
+                              // Cek apakah tombol harus disable (karena ada order lain yg aktif)
+                              bool isLocked = controller.currentActiveOrderId.value != null && 
+                                              controller.currentActiveOrderId.value != order.id;
 
                               return Card(
-                                color: isDark ? Colors.grey[900] : Colors.white, // <-- Card Dinamis
                                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                 elevation: 2,
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: color.withOpacity(0.2),
-                                    child: Icon(
-                                      isPickup ? Icons.location_on : Icons.local_shipping, 
-                                      color: color // Warna ikon tetap (Merah/Biru) biar jelas fungsinya
-                                    ),
+                                    backgroundColor: themeColor.withOpacity(0.1),
+                                    child: Icon(isPickup ? Icons.upload : Icons.download, color: themeColor),
                                   ),
-                                  title: Text(
-                                    data['customer_name'] ?? 'No Name', 
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: textColor) // <-- Teks Dinamis
-                                  ),
+                                  title: Text(order.customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
                                   subtitle: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(data['address'] ?? '-', style: TextStyle(color: textColor.withOpacity(0.7))), // <-- Subtitle Dinamis
-                                      Text(status.toUpperCase(), style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+                                      Text(order.address, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 4),
+                                      // Badge Status
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isActive ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          order.deliveryStatus.toUpperCase(),
+                                          style: TextStyle(fontSize: 10, color: isActive ? Colors.green : Colors.grey),
+                                        ),
+                                      )
                                     ],
                                   ),
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Tombol Aksi Cepat (Ganti Status)
+                                      // Tombol Fokus Peta
                                       IconButton(
-                                        icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                                        tooltip: buttonText,
+                                        icon: const Icon(Icons.gps_fixed, color: Colors.grey),
                                         onPressed: () {
-                                          if (id != null) {
-                                            // Panggil fungsi update status di controller
-                                            controller.advanceOrderStatus(id, status);
+                                          if (order.latitude != null && order.longitude != null) {
+                                            mapController.move(LatLng(order.latitude!, order.longitude!), 15);
                                           }
                                         },
                                       ),
-                                      // Tombol Zoom Peta
-                                      IconButton(
-                                        icon: const Icon(Icons.map, color: Colors.grey),
-                                        onPressed: () {
-                                          if (lat != null && lng != null) {
-                                            mapController.move(LatLng(lat, lng), 16.0);
-                                          } else {
-                                            Get.snackbar('Info', 'Order ini belum ada pin lokasinya');
-                                          }
-                                        },
+                                      // Tombol Aksi Utama (Mulai / Sampai)
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: btnColor,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        icon: Icon(btnIcon, size: 14),
+                                        label: Text(btnText, style: const TextStyle(fontSize: 11)),
+                                        onPressed: isLocked ? null : () => controller.onMainActionButtonPressed(order),
                                       ),
                                     ],
                                   ),
