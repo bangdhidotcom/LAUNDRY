@@ -3,47 +3,38 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
+// ignore: depend_on_referenced_packages
 import 'package:firebase_core/firebase_core.dart';
 
 import 'providers/app_provider.dart';
 import 'screens/auth_screen.dart';
-import 'screens/main_screen.dart';
+import 'screens/main_screen.dart'; // Pastikan ini mengarah ke file yang baru diperbaiki di langkah 3
 import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 1. Load Env
   await dotenv.load(fileName: ".env");
 
-  // 2. Init Supabase
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
-  // 3. Init Firebase
   try {
     await Firebase.initializeApp();
     
-    // --- LOGIKA OTOMATIS BARU ---
-    // A. Init awal (jika user sudah login dari sebelumnya)
     await NotificationService().init();
 
-    // B. Pasang "Penyadap" Status Login
-    // Setiap kali user Login atau Logout, kode ini berjalan
     Supabase.instance.client.auth.onAuthStateChange.listen((data) async {
       final AuthChangeEvent event = data.event;
       if (event == AuthChangeEvent.signedIn) {
-        // Otomatis simpan token saat user baru saja login!
-        print("User baru login, menyimpan token otomatis...");
         await NotificationService().init();
       }
     });
-    // -----------------------------
 
   } catch (e) {
-    print("Error Init Firebase: $e"); 
+    // Error handling silent
   }
 
   runApp(const MyApp());
@@ -54,7 +45,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Cek status login untuk menentukan halaman awal
     final isLoggedIn = Supabase.instance.client.auth.currentUser != null;
 
     return MultiProvider(

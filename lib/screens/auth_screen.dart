@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/user_service.dart';
-import '../main.dart'; // <--- PERBAIKAN 1: Tambahkan '../' agar bisa menemukan file main.dart
+import 'main_screen.dart'; // <--- Perbaiki import ini, jangan '../main.dart'
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});

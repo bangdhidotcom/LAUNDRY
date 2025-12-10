@@ -1,54 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'home_screen.dart';
+import 'orders_screen.dart';
+import 'profile_screen.dart';
 
-import '../providers/app_provider.dart';
-import '../screens/auth_screen.dart';
-import '../screens/main_screen.dart'; // <--- Import file baru
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Debugging: Cek apakah env terbaca
-  try {
-    await dotenv.load(fileName: ".env");
-    print("Env loaded. URL: ${dotenv.env['SUPABASE_URL']}"); // Cek di Debug Console
-  } catch (e) {
-    print("Gagal load .env: $e");
-  }
-
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL'] ?? '',
-    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
-  );
-
-  runApp(const MyApp());
+  @override
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const OrdersScreen(),
+    const ProfileScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    // Cek session aman
-    final isLoggedIn = Supabase.instance.client.auth.currentUser != null;
-
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AppProvider()),
-      ],
-      child: MaterialApp(
-        title: 'Laundry3B User',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
-          useMaterial3: true,
-          textTheme: GoogleFonts.interTextTheme(),
-          scaffoldBackgroundColor: const Color(0xFFF9FAFB),
-        ),
-        home: isLoggedIn ? const MainScreen() : const AuthScreen(),
+    return Scaffold(
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (int index) {
+          setState(() => _selectedIndex = index);
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(LucideIcons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(LucideIcons.package),
+            label: 'Pesanan',
+          ),
+          NavigationDestination(
+            icon: Icon(LucideIcons.user),
+            label: 'Profil',
+          ),
+        ],
       ),
     );
   }

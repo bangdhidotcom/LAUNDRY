@@ -6,7 +6,9 @@ class UserService {
 
   User? get currentUser => _supabase.auth.currentUser;
   String? get currentUserId => _supabase.auth.currentUser?.id;
-  UserMetadata? get userMetadata => _supabase.auth.currentUser?.userMetadata;
+  
+  // PERBAIKAN: Ubah return type jadi Map
+  Map<String, dynamic>? get userMetadata => _supabase.auth.currentUser?.userMetadata;
 
   Future<void> login({required String email, required String password}) async {
     try {
@@ -72,7 +74,6 @@ class UserService {
     try {
       final data = order.toMap();
       data['user_id'] = currentUserId;
-      // Hapus ID jika null agar digenerate DB
       data.remove('id'); 
       await _supabase.from('orders').insert(data);
     } catch (e) {
@@ -85,7 +86,6 @@ class UserService {
     return _supabase.from('orders').stream(primaryKey: ['id']).eq('user_id', currentUserId!).order('order_date', ascending: false).map((data) => data.map((e) => Order.fromMap(e)).toList());
   }
 
-  // --- REAL TIME TRACKING ---
   Stream<Map<String, dynamic>?> streamCourierLocation(int courierId) {
     return _supabase
         .from('couriers')

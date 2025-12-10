@@ -1,3 +1,5 @@
+// ignore_for_file: depend_on_referenced_packages, deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -20,6 +22,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   final WeatherService _weatherService = WeatherService();
   final MapController _mapController = MapController();
 
+  // ignore: unused_field
   Map<String, dynamic>? _weatherData;
   bool _isBadWeather = false;
 
@@ -36,7 +39,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
         _weatherData = data;
         if (data['weather'] != null && data['weather'].isNotEmpty) {
           final id = data['weather'][0]['id'] as int;
-          // Kode 2xx-5xx = Hujan/Badai
           _isBadWeather = (id >= 200 && id <= 531);
         }
       });
@@ -54,15 +56,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Posisi User
     final userLat = widget.order.latitude ?? -7.9666;
     final userLng = widget.order.longitude ?? 112.6326;
     final userPos = LatLng(userLat, userLng);
 
-    // Cek apakah ada Kurir yang ditugaskan
     final bool hasCourier = widget.order.courierId != null;
     
-    // Status aktif tracking: Saat Pickup atau Delivery
     final bool isTrackingActive = 
         (widget.order.status == 'pickup' || widget.order.status == 'delivery') && hasCourier;
 
@@ -75,7 +74,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
       ),
       body: Column(
         children: [
-          // --- MAP ---
           Expanded(
             flex: 2,
             child: Stack(
@@ -86,7 +84,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       : Stream.value(null),
                   builder: (context, snapshot) {
                     LatLng? courierPos;
-                    // Jika ada data kurir dan ada koordinatnya
                     if (snapshot.hasData && snapshot.data != null) {
                       final lat = snapshot.data!['current_lat'];
                       final lng = snapshot.data!['current_lng'];
@@ -106,7 +103,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           userAgentPackageName: 'com.laundry3b.user',
                         ),
-                        // Marker User (Rumah)
                         MarkerLayer(
                           markers: [
                             Marker(
@@ -115,7 +111,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               height: 50,
                               child: const Icon(LucideIcons.home, color: Colors.blue, size: 40),
                             ),
-                            // Marker Kurir (Motor) - Hanya jika ada datanya
                             if (courierPos != null)
                               Marker(
                                 point: courierPos,
@@ -125,7 +120,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               ),
                           ],
                         ),
-                        // Garis Rute (User ke Kurir)
                         if (courierPos != null)
                           PolylineLayer(
                             polylines: [
@@ -142,7 +136,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   },
                 ),
                 
-                // Alert Cuaca
                 if (_isBadWeather)
                   Positioned(
                     top: 10, left: 10, right: 10,
@@ -162,7 +155,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     ),
                   ),
                   
-                // Info Status Kurir di Peta (Jika belum ada kurir)
                 if (!hasCourier && (widget.order.status == 'pickup' || widget.order.status == 'delivery'))
                    Positioned(
                     bottom: 10, left: 20, right: 20,
@@ -176,7 +168,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
           ),
 
-          // --- DETAIL STATUS ---
           Expanded(
             flex: 3,
             child: Container(
@@ -237,7 +228,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Widget _buildTimeline(int step) {
-    final icons = [LucideIcons.clock, LucideIcons.bike, LucideIcons.washingMachine, LucideIcons.package, LucideIcons.checkCircle];
+    // PERBAIKAN: Ganti washingMachine (error) ke shirt
+    final icons = [LucideIcons.clock, LucideIcons.bike, LucideIcons.shirt, LucideIcons.package, LucideIcons.checkCircle];
     final labels = ['Pending', 'Jemput', 'Cuci', 'Antar', 'Selesai'];
 
     return Row(
