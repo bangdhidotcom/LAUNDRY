@@ -1,0 +1,14 @@
+# Generated code and build folders
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+android/app/build/
+ios/build/
+
+# IDE files and sensitive data
+*.iml
+.DS_Store
+.idea/
+.env
