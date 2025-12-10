@@ -22,3 +22,14 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // Cek versi terbaru jika error, tapi 4.4.0 cukup stabil
+        classpath("com.google.gms:google-services:4.4.0") 
+    }
+}

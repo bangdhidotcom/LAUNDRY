@@ -3,24 +3,34 @@ class Order {
   final String userId;
   final String customerName;
   final String customerPhone;
-  final String customerAddress;
+  final String address;
   final List<OrderItem> items;
   final int totalPrice;
   final String status;
   final DateTime orderDate;
-  final String? outletId;
+  
+  // Field Logistik
+  final double? latitude;
+  final double? longitude;
+  final String deliveryMethod;
+  final DateTime? pickupSchedule;
+  final int? courierId; // <--- Field Baru untuk Tracking Real
 
   Order({
     this.id,
     required this.userId,
     required this.customerName,
     required this.customerPhone,
-    required this.customerAddress,
+    required this.address,
     required this.items,
     required this.totalPrice,
     this.status = 'pending',
     required this.orderDate,
-    this.outletId,
+    this.latitude,
+    this.longitude,
+    this.deliveryMethod = 'pickup',
+    this.pickupSchedule,
+    this.courierId,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,11 +38,16 @@ class Order {
       'user_id': userId,
       'customer_name': customerName,
       'customer_phone': customerPhone,
-      'address': customerAddress,
+      'address': address,
       'items': items.map((x) => x.toMap()).toList(),
       'total_cost': totalPrice,
       'status': status,
       'order_date': orderDate.toIso8601String(),
+      'latitude': latitude,
+      'longitude': longitude,
+      'delivery_method': deliveryMethod,
+      'pickup_schedule': pickupSchedule?.toIso8601String(),
+      'courier_id': courierId,
     };
   }
 
@@ -42,7 +57,7 @@ class Order {
       userId: map['user_id'] ?? '',
       customerName: map['customer_name'] ?? '',
       customerPhone: map['customer_phone'] ?? '',
-      customerAddress: map['address'] ?? '',
+      address: map['address'] ?? '',
       items: (map['items'] as List<dynamic>?)
               ?.map((x) => OrderItem.fromMap(x))
               .toList() ??
@@ -50,7 +65,13 @@ class Order {
       totalPrice: (map['total_cost'] as num?)?.toInt() ?? 0,
       status: map['status'] ?? 'pending',
       orderDate: DateTime.parse(map['order_date']),
-      outletId: map['outlet_id']?.toString(),
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
+      deliveryMethod: map['delivery_method'] ?? 'pickup',
+      pickupSchedule: map['pickup_schedule'] != null 
+          ? DateTime.parse(map['pickup_schedule']) 
+          : null,
+      courierId: map['courier_id'] as int?, // Mapping dari DB
     );
   }
 }
@@ -68,23 +89,19 @@ class OrderItem {
     required this.unit,
   });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'service_name': serviceName,
-      'price': price,
-      'quantity': quantity,
-      'unit': unit,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'service_name': serviceName,
+        'price': price,
+        'quantity': quantity,
+        'unit': unit,
+      };
 
-  factory OrderItem.fromMap(Map<String, dynamic> map) {
-    return OrderItem(
-      serviceName: map['service_name'] ?? '',
-      price: (map['price'] as num?)?.toInt() ?? 0,
-      quantity: (map['quantity'] as num?)?.toInt() ?? 1,
-      unit: map['unit'] ?? 'kg',
-    );
-  }
+  factory OrderItem.fromMap(Map<String, dynamic> map) => OrderItem(
+        serviceName: map['service_name'] ?? '',
+        price: (map['price'] as num?)?.toInt() ?? 0,
+        quantity: (map['quantity'] as num?)?.toInt() ?? 1,
+        unit: map['unit'] ?? 'kg',
+      );
 }
 
 class ServicePrice {
@@ -93,19 +110,12 @@ class ServicePrice {
   final int price;
   final String unit;
 
-  ServicePrice({
-    required this.id,
-    required this.name,
-    required this.price,
-    required this.unit,
-  });
+  ServicePrice({required this.id, required this.name, required this.price, required this.unit});
 
-  factory ServicePrice.fromMap(Map<String, dynamic> map) {
-    return ServicePrice(
-      id: map['id'],
-      name: map['service_name'] ?? 'Layanan',
-      price: (map['price'] as num?)?.toInt() ?? 0,
-      unit: map['unit'] ?? 'kg',
-    );
-  }
+  factory ServicePrice.fromMap(Map<String, dynamic> map) => ServicePrice(
+        id: map['id'],
+        name: map['service_name'] ?? 'Layanan',
+        price: (map['price'] as num?)?.toInt() ?? 0,
+        unit: map['unit'] ?? 'kg',
+      );
 }
