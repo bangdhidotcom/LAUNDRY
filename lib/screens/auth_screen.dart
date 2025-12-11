@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../services/user_service.dart';
-import 'main_screen.dart'; // <--- Perbaiki import ini, jangan '../main.dart'
+import 'main_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -12,11 +12,10 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final UserService _userService = UserService();
-  bool _isLogin = true; // Toggle antara Login dan Daftar
+  bool _isLogin = true;
   bool _isLoading = false;
   bool _isObscure = true;
 
-  // Controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -26,13 +25,11 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       if (_isLogin) {
-        // --- PROSES LOGIN ---
         await _userService.login(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
       } else {
-        // --- PROSES DAFTAR ---
         if (_nameController.text.isEmpty || _phoneController.text.isEmpty) {
           throw Exception("Nama dan No HP wajib diisi");
         }
@@ -46,13 +43,12 @@ class _AuthScreenState extends State<AuthScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Berhasil daftar! Silakan login.")),
           );
-          setState(() => _isLogin = true); // Pindah ke tab login
+          setState(() => _isLogin = true);
           _isLoading = false;
           return;
         }
       }
 
-      // Jika berhasil login
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -82,9 +78,10 @@ class _AuthScreenState extends State<AuthScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // PERBAIKAN 2: Ganti icon ke Icons.local_laundry_service (Material) agar pasti ada
-              const Icon(Icons.local_laundry_service,
-                  size: 64, color: Color(0xFF2563EB)),
+              Image.asset(
+                'assets/images/logo_3b.png',
+                height: 120,
+              ),
 
               const SizedBox(height: 16),
               Text(
