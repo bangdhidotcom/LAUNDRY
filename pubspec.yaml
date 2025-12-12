@@ -48,24 +48,25 @@ flutter:
   assets:
     - .env
     - assets/images/logo_3b.png
-    # JANGAN LUPA FILE INI WAJIB ADA DI FOLDER ASSETS
+    - assets/images/logo_menu.png
+    - assets/images/logo_notif.png
     - assets/service_account.json 
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo_b2.png"
+  image_path: "assets/images/logo_menu.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/images/logo_b2.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/logo_menu.png"
   remove_alpha_ios: true
 
 flutter_native_splash:
-  color: "#ffffff"
-  image: "assets/images/logo_b2.png"
-  branding: "assets/images/logo_b2.png"
+  color: "#000000"
+  image: "assets/images/logo_menu.png"
+  branding: "assets/images/logo_menu.png"
   android_12:
-    image: "assets/images/logo_b2.png"
-    icon_background_color: "#ffffff"
+    image: "assets/images/logo_menu.png"
+    icon_background_color: "#000000"
   ios: true
   android: true

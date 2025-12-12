@@ -2,20 +2,20 @@ class Order {
   final String? id;
   final String customerName;
   final String serviceType;
-  final double totalCost; // Harga Laundry
+  final double totalCost;
   final String address;
   final DateTime orderDate;
   final String status;
   final String? notes;
   final int? outletId;
-  
-  // --- FIELD BARU UNTUK LOGISTIK ---
+  final String? userId;
+
   final double? latitude;
   final double? longitude;
-  final String deliveryType; // Hemat, Reguler, Express
-  final double deliveryFee;  // Ongkir
-  final String deliveryStatus; // 'pending', 'otw', 'arrived', 'completed'
-  final String? proofPhotoUrl; // URL Bukti Foto
+  final String deliveryType;
+  final double deliveryFee;
+  final String deliveryStatus;
+  final String? proofPhotoUrl;
 
   Order({
     this.id,
@@ -30,12 +30,12 @@ class Order {
     this.longitude,
     this.deliveryType = 'Reguler',
     this.deliveryFee = 0,
-    this.deliveryStatus = 'pending', // Default
+    this.deliveryStatus = 'pending',
     this.proofPhotoUrl,
     this.outletId,
+    this.userId,
   });
 
-  // Helper Logic
   bool get isPickup => status.toLowerCase() == 'pickup';
   bool get isDelivery => status.toLowerCase() == 'delivery';
 
@@ -54,6 +54,7 @@ class Order {
       'delivery_fee': deliveryFee,
       'delivery_status': deliveryStatus,
       'outlet_id': outletId,
+      'user_id': userId,
     };
   }
 
@@ -73,10 +74,10 @@ class Order {
       longitude: (map['longitude'] as num?)?.toDouble(),
       deliveryType: map['delivery_type'] ?? 'Reguler',
       deliveryFee: (map['delivery_fee'] ?? 0).toDouble(),
-      // Ambil status logistik, default ke 'pending' jika null
       deliveryStatus: map['delivery_status'] ?? 'pending',
       proofPhotoUrl: map['pickup_proof_url'] ?? map['delivery_proof_url'],
       outletId: map['outlet_id'] as int?,
+      userId: map['user_id']?.toString(),
     );
   }
 }

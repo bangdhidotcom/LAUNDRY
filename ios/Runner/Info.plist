@@ -46,15 +46,14 @@
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UIStatusBarHidden</key>
-        <false/>
-
-        <key>NSLocationWhenInUseUsageDescription</key>
-        <string>Aplikasi membutuhkan lokasi Anda untuk navigasi kurir dan pelacakan real-time.</string>
-        <key>NSLocationAlwaysUsageDescription</key>
-        <string>Aplikasi membutuhkan lokasi Anda untuk navigasi kurir di latar belakang.</string>
-        <key>NSCameraUsageDescription</key>
-        <string>Aplikasi membutuhkan kamera untuk mengambil foto bukti pickup dan delivery.</string>
-        <key>NSPhotoLibraryUsageDescription</key>
-        <string>Aplikasi membutuhkan akses galeri untuk memilih bukti foto.</string>
+		<false/>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Aplikasi membutuhkan lokasi Anda untuk navigasi kurir dan pelacakan real-time.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>Aplikasi membutuhkan lokasi Anda untuk navigasi kurir di latar belakang.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>Aplikasi membutuhkan kamera untuk mengambil foto bukti pickup dan delivery.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Aplikasi membutuhkan akses galeri untuk memilih bukti foto.</string>
 	</dict>
 </plist>
