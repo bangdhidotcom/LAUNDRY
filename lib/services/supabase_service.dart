@@ -5,6 +5,7 @@ import '../models/order_model.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
+import 'admin_notification_service.dart';
 
 class SupabaseService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -49,20 +50,67 @@ class SupabaseService {
 
   Future<void> updateOrderStatus(String id, String newStatus) async {
     try {
-      // Siapkan data yang mau diupdate
       final Map<String, dynamic> updates = {
         'status': newStatus,
       };
 
-      // LOGIKA BARU: 
-      // Jika status berubah jadi 'delivery' (Siap Antar),
-      // kita harus RESET status kurir jadi 'pending'.
-      // Supaya tombol 'Mulai' muncul lagi untuk pengantaran.
       if (newStatus == 'delivery') {
         updates['delivery_status'] = 'pending';
       }
 
+      // 1. Update ke Database
       await _supabase.from('orders').update(updates).eq('id', id);
+
+      // 2. LOGIKA NOTIFIKASI (BARU)
+      // Ambil data order untuk tahu siapa user_id nya
+      final orderData = await _supabase
+          .from('orders')
+          .select('user_id')
+          .eq('id', id)
+          .single();
+      
+      final userId = orderData['user_id'];
+
+      if (userId != null) {
+        // Ambil fcm_token dari tabel customers berdasarkan auth_id (user_id)
+        final customerData = await _supabase
+            .from('customers')
+            .select('fcm_token')
+            .eq('auth_id', userId)
+            .maybeSingle();
+
+        final token = customerData?['fcm_token'];
+
+        if (token != null && token.toString().isNotEmpty) {
+          // Tentukan Pesan Berdasarkan Status
+          String title = "Update Laundry";
+          String body = "Status pesananmu telah diperbarui.";
+
+          if (newStatus == 'pickup') {
+            title = "Kurir OTW Jemput! 🛵";
+            body = "Siapkan cucian kotor kamu ya.";
+          } else if (newStatus == 'process') {
+            title = "Sedang Dicuci 🫧";
+            body = "Pakaianmu sedang diproses biar wangi.";
+          } else if (newStatus == 'delivery') {
+            title = "Cucian OTW Pulang 👕";
+            body = "Kurir sedang mengantar pakaian bersihmu.";
+          } else if (newStatus == 'completed') {
+            title = "Selesai! 🎉";
+            body = "Terima kasih sudah mencuci di Laundry3B.";
+          }
+
+          // Kirim!
+          await AdminNotificationService().sendNotificationToUser(
+            userToken: token,
+            title: title,
+            body: body,
+          );
+        } else {
+          print("User ini tidak punya token FCM (Mungkin belum login di app baru).");
+        }
+      }
+
     } catch (e) {
       throw Exception('Gagal update status: $e');
     }

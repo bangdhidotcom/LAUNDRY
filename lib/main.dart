@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -7,6 +9,8 @@ import 'package:laundry3b1titik0/services/theme_service.dart';
 import 'package:laundry3b1titik0/models/weather_model.dart';
 import 'package:laundry3b1titik0/models/forecast_model.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:laundry3b1titik0/services/admin_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +26,15 @@ void main() async {
     url: dotenv.env['SUPABASE_URL'] ?? '',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
+
+  // --- INIT FIREBASE & NOTIFIKASI ---
+  try {
+    await Firebase.initializeApp();
+    await AdminNotificationService().init();
+  } catch (e) {
+    print("Error Firebase: $e");
+  }
+  // ----------------------------------
 
   await Get.putAsync(() => ThemeService().init());
   runApp(const MyApp());

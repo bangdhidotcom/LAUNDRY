@@ -7,7 +7,6 @@ version: 1.0.0+1
 environment:
   sdk: ^3.9.2
 
-
 dependencies:
   flutter:
     sdk: flutter
@@ -27,6 +26,12 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   marquee: ^2.3.0
+  
+  # --- TAMBAHAN UNTUK NOTIFIKASI ---
+  firebase_core: ^2.24.2
+  firebase_messaging: ^14.7.9
+  flutter_local_notifications: ^17.2.3
+  googleapis_auth: ^1.4.1
 
 dev_dependencies:
   flutter_test:
@@ -43,27 +48,24 @@ flutter:
   assets:
     - .env
     - assets/images/logo_3b.png
+    # JANGAN LUPA FILE INI WAJIB ADA DI FOLDER ASSETS
+    - assets/service_account.json 
 
-# --- 1. KONFIGURASI LOGO APLIKASI (MENU HP) ---
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/images/logo_b2.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#ffffff" # Background putih biar rapi
+  adaptive_icon_background: "#ffffff"
   adaptive_icon_foreground: "assets/images/logo_b2.png"
   remove_alpha_ios: true
 
-# --- 2. KONFIGURASI NATIVE SPLASH SCREEN (LOADING AWAL) ---
 flutter_native_splash:
-  color: "#ffffff" # Background putih (ganti #000000 kalau mau hitam)
-  image: "assets/images/logo_b2.png" # Logo di tengah layar
-  branding: "assets/images/logo_b2.png" # (Opsional) Branding tambahan bawah
-  
-  # Khusus Android 12+ (Penting biar logo gak kecil banget)
+  color: "#ffffff"
+  image: "assets/images/logo_b2.png"
+  branding: "assets/images/logo_b2.png"
   android_12:
     image: "assets/images/logo_b2.png"
     icon_background_color: "#ffffff"
-  
   ios: true
   android: true
